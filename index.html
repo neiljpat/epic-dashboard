@@ -369,21 +369,18 @@ async function storeRemoteDek(email, salt, payload) {
 }
 
 // Decrypt the DEK using a member's email + password
-// Checks remote API for a custom password first, then falls back to HTML-embedded keys
+// If user has a custom key on Cloudflare, ONLY that key is accepted (base password deprecated).
+// Falls back to HTML-embedded keys only if no custom key exists (first login).
 async function decryptDekForMember(email, password) {
-  // Try remote custom key first
   const remoteKey = await fetchRemoteDek(email);
   if (remoteKey) {
-    try {
-      const salt = Uint8Array.from(atob(remoteKey.salt), c => c.charCodeAt(0));
-      const memberKey = await deriveKey(password, salt, ["decrypt"]);
-      const dekBytes = await decryptBlob(remoteKey.payload, memberKey);
-      return importDek(dekBytes);
-    } catch {
-      // Custom key failed — fall through to HTML keys
-    }
+    // Custom key exists — this is the ONLY accepted password
+    const salt = Uint8Array.from(atob(remoteKey.salt), c => c.charCodeAt(0));
+    const memberKey = await deriveKey(password, salt, ["decrypt"]);
+    const dekBytes = await decryptBlob(remoteKey.payload, memberKey);
+    return importDek(dekBytes);
   }
-  // Fall back to HTML-embedded MEMBER_KEYS
+  // No custom key — first login, use HTML-embedded keys
   const entry = MEMBER_KEYS[email];
   if (!entry) throw new Error("Email not recognized");
   const salt = Uint8Array.from(atob(entry.salt), c => c.charCodeAt(0));
