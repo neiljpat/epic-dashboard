@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>El Pen Investment Company — Portfolio Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1419;
+    --panel: #1a2028;
+    --panel-2: #232b35;
+    --border: #2d3744;
+    --text: #e8ecf1;
+    --muted: #8a94a3;
+    --accent: #6ba3ff;
+    --accent-2: #9e7bff;
+    --green: #4ade80;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --epic: #6ba3ff;
+    --personal: #9e7bff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "SF Pro Text", Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+  .container { max-width: 1320px; margin: 0 auto; padding: 24px 28px 60px; }
+  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap; margin-bottom: 4px; }
+  h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .meta { color: var(--muted); font-size: 12px; text-align: right; }
+
+  .filter-bar {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; margin: 20px 0 18px;
+    flex-wrap: wrap;
+  }
+  .filter-label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; margin-right: 4px; }
+  .pill {
+    padding: 7px 14px; border-radius: 999px; border: 1px solid var(--border);
+    background: transparent; color: var(--text); font-size: 13px; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .pill:hover { background: var(--panel-2); }
+  .pill.active { background: var(--accent); border-color: var(--accent); color: #0a1220; font-weight: 600; }
+  .pill.active.personal { background: var(--accent-2); border-color: var(--accent-2); }
+  .pill.active.combined { background: linear-gradient(90deg, var(--accent), var(--accent-2)); border: none; }
+
+  .member-select { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  select {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 7px 10px; font-size: 13px; font-family: inherit;
+  }
+
+  .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 22px; }
+  .kpi {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+  .kpi-value { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  .kpi-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .kpi-sub.green { color: var(--green); }
+  .kpi-sub.amber { color: var(--amber); }
+
+  .grid-2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px 20px; margin-bottom: 18px;
+  }
+  .panel h2 {
+    font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.06em; margin: 0 0 14px;
+  }
+  .panel h2 .hint { float: right; color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0; font-size: 11px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--muted); font-weight: 500; padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  td { padding: 10px; border-bottom: 1px solid #232b35; }
+  td.right, th.right { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.totals td { font-weight: 600; border-top: 1px solid var(--border); border-bottom: none; }
+  tr:hover td { background: rgba(107, 163, 255, 0.04); }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; letter-spacing: 0.03em; }
+  .tag.epic { background: rgba(107, 163, 255, 0.15); color: var(--accent); }
+  .tag.personal { background: rgba(158, 123, 255, 0.15); color: var(--accent-2); }
+  .tag.fund { background: rgba(255,255,255,0.06); color: var(--muted); }
+  .tag.direct { background: rgba(74, 222, 128, 0.12); color: var(--green); }
+  .nav-cell.empty { color: var(--muted); font-style: italic; font-size: 12px; }
+  .nav-cell[contenteditable="true"] { outline: 1px dashed transparent; padding: 4px 6px; border-radius: 4px; }
+  .nav-cell[contenteditable="true"]:hover { outline-color: var(--border); }
+  .nav-cell[contenteditable="true"]:focus { outline: 1px solid var(--accent); background: rgba(107,163,255,0.08); }
+
+  .chart-wrap { position: relative; height: 280px; }
+  .chart-wrap.tall { height: 320px; }
+
+  .callouts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+  .callout {
+    background: var(--panel-2); border-radius: 8px; padding: 12px 14px;
+    border-left: 3px solid var(--accent);
+  }
+  .callout .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .callout .value { font-size: 15px; font-weight: 600; margin-top: 4px; }
+  .callout .meta-row { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  footer { color: var(--muted); font-size: 11px; margin-top: 30px; padding-top: 18px; border-top: 1px solid var(--border); }
+  .note { color: var(--muted); font-size: 12px; margin: 8px 0 0; font-style: italic; }
+
+  /* Fund detail modal */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100;
+    display: none; align-items: flex-start; justify-content: center; padding: 40px 20px; overflow-y: auto;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    width: 100%; max-width: 980px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+  .modal-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    padding: 20px 24px; border-bottom: 1px solid var(--border);
+  }
+  .modal-header h2 { margin: 0; font-size: 18px; font-weight: 600; color: var(--text); text-transform: none; letter-spacing: 0; }
+  .modal-header .sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .modal-close {
+    background: transparent; border: 1px solid var(--border); color: var(--muted);
+    width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 18px;
+  }
+  .modal-close:hover { background: var(--panel-2); color: var(--text); }
+  .modal-body { padding: 20px 24px; }
+  .modal-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+  .modal-kpi { background: var(--panel-2); border-radius: 8px; padding: 12px 14px; }
+  .modal-kpi .label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .modal-kpi .value { font-size: 17px; font-weight: 600; margin-top: 4px; }
+  .modal-section { margin-top: 20px; }
+  .modal-section h3 { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 10px; }
+  .nav-chart-wrap { height: 240px; position: relative; }
+  .walkforward { width: 100%; }
+  .walkforward td { padding: 6px 10px; border-bottom: 1px solid #232b35; font-size: 13px; }
+  .walkforward td.right { text-align: right; font-variant-numeric: tabular-nums; }
+  .walkforward tr.divider td { border-top: 1px solid var(--border); font-weight: 600; }
+  .walkforward .pos { color: var(--green); }
+  .walkforward .neg { color: var(--red); }
+  .dbl-hint { color: var(--muted); font-size: 11px; margin-left: 4px; }
+  tr.holding-row { cursor: pointer; }
+  tr.holding-row:hover td { background: rgba(107, 163, 255, 0.06); }
+
+  @media (max-width: 1100px) {
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .grid-2 { grid-template-columns: 1fr; }
+    .modal-kpis { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- =========================================================================
+     PASSCODE GATE — change the PASSCODE_HASH below to rotate the passcode.
+     The default passcode is: epic2026
+     To compute a new hash, run in a browser console:
+       crypto.subtle.digest("SHA-256", new TextEncoder().encode("yourpasscode"))
+         .then(h => console.log([...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join('')));
+     NOTE: This is a usability gate, not real security. The dashboard data is
+     embedded in the HTML and a determined viewer can see it via View Source.
+     For real privacy, host on Netlify/Vercel with their password-protection
+     features, or keep the dashboard off the public internet.
+========================================================================== -->
+<div id="gate" style="position:fixed;inset:0;background:#0f1419;z-index:999;display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <form id="gateForm" style="background:#1a2028;border:1px solid #2d3744;border-radius:14px;padding:36px 40px;width:380px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+    <h1 style="margin:0 0 6px;font-size:18px;font-weight:600;color:#e8ecf1;">El Pen Investment Company</h1>
+    <p style="margin:0 0 22px;color:#8a94a3;font-size:13px;">Portfolio dashboard — passcode required</p>
+    <input id="gatePass" type="password" autocomplete="off" autofocus placeholder="Passcode"
+      style="width:100%;padding:11px 14px;background:#232b35;border:1px solid #2d3744;border-radius:8px;color:#e8ecf1;font-size:14px;font-family:inherit;box-sizing:border-box;" />
+    <div id="gateError" style="color:#f87171;font-size:12px;margin-top:8px;min-height:16px;"></div>
+    <button type="submit" style="width:100%;margin-top:14px;padding:11px;background:#6ba3ff;border:none;border-radius:8px;color:#0a1220;font-weight:600;font-size:14px;cursor:pointer;">Unlock</button>
+    <p style="margin:22px 0 0;color:#8a94a3;font-size:11px;line-height:1.5;">Members of El Pen Investment Company LLC: passcode shared via separate channel. If you don't have it, contact Neil.</p>
+  </form>
+</div>
+<script>
+(function() {
+  // SHA-256 of "epic2026" — change this hash (see comment above) to rotate the passcode
+  const PASSCODE_HASH = "9fba40ee583caea08cde2166c421b10552c96a9496b06a54023dc8e4871feca8";
+  // Already unlocked this session?
+  if (sessionStorage.getItem("epicUnlocked") === "1") {
+    document.getElementById("gate").style.display = "none";
+    return;
+  }
+  async function sha256(s) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+    return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,"0")).join("");
+  }
+  document.getElementById("gateForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const input = document.getElementById("gatePass").value;
+    const hash = await sha256(input);
+    if (hash === PASSCODE_HASH) {
+      sessionStorage.setItem("epicUnlocked", "1");
+      document.getElementById("gate").style.display = "none";
+    } else {
+      document.getElementById("gateError").textContent = "Incorrect passcode.";
+      document.getElementById("gatePass").value = "";
+      document.getElementById("gatePass").focus();
+    }
+  });
+})();
+</script>
+
+<div class="container">
+  <header>
+    <div>
+      <h1>El Pen Investment Company LLC</h1>
+      <div class="sub">Portfolio dashboard — committed capital, calls, distributions, NAV &nbsp;·&nbsp; EIN 84-4835004</div>
+    </div>
+    <div class="meta">
+      As of <span id="asOf">May 12, 2026</span><br/>
+      <span class="sub">Source: EPIC ledger, GP statements, 2024 K-1s</span>
+    </div>
+  </header>
+
+  <div class="filter-bar">
+    <span class="filter-label">View</span>
+    <button class="pill active" data-view="epic" onclick="setView('epic')">EPIC only</button>
+    <button class="pill" data-view="personal" onclick="setView('personal')">Personal only</button>
+    <button class="pill" data-view="combined" onclick="setView('combined')">Combined</button>
+    <div class="member-select">
+      <span class="filter-label">Member lens</span>
+      <select id="memberSelect" onchange="render()">
+        <option value="ALL">EPIC total (all members)</option>
+        <option value="Daniel Peterson">Daniel Peterson (27.78%)</option>
+        <option value="Neil Patel">Neil Patel (27.78%)</option>
+        <option value="Nathan Stoll">Nathan Stoll (27.78%)</option>
+        <option value="Saurabh Sharma">Saurabh Sharma (13.89%)</option>
+        <option value="Brian Peterson">Brian Peterson (2.78%)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="panel">
+    <h2>Holdings <span class="hint">Double-click a row for fund detail · Click NAV cells to edit</span></h2>
+    <table id="holdingsTable">
+      <thead>
+        <tr>
+          <th>Fund / Investment</th>
+          <th>Type</th>
+          <th class="right">Commitment</th>
+          <th class="right">Called</th>
+          <th class="right">% Called</th>
+          <th class="right">Distributed</th>
+          <th class="right">NAV</th>
+          <th class="right">Total Value</th>
+          <th class="right">TVPI</th>
+          <th class="right">DPI</th>
+        </tr>
+      </thead>
+      <tbody id="holdingsBody"></tbody>
+    </table>
+    <p class="note" id="navNote"></p>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel">
+      <h2>Capital called by year</h2>
+      <div class="chart-wrap tall"><canvas id="chartCalledByYear"></canvas></div>
+    </div>
+    <div class="panel">
+      <h2>NAV composition</h2>
+      <div class="chart-wrap tall"><canvas id="chartNav"></canvas></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Recent &amp; upcoming capital calls</h2>
+    <table>
+      <thead><tr><th>Date</th><th>Fund</th><th class="right">EPIC share</th><th>Status</th></tr></thead>
+      <tbody id="callsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2>Distributions to date</h2>
+    <table>
+      <thead><tr><th>Date</th><th>Fund</th><th class="right">Total</th><th>Members paid</th></tr></thead>
+      <tbody id="distBody"></tbody>
+    </table>
+  </div>
+
+  <footer>
+    Data sources: <code>EPIC LLC.xlsx</code> running ledger (commitments, calls, distributions); fund quarterly statements (NAV, IRR). NAV inputs are editable in this view — they persist in your local browser only and do not write back to source files. To share updated NAVs with the rest of EPIC, edit the <code>statements</code> field below in the HTML source, or send Neil the new statement and he'll update the published version.
+  </footer>
+</div>
+
+<!-- Fund detail modal -->
+<div class="modal-backdrop" id="fundModal" onclick="if(event.target===this) closeFundDetail()">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <h2 id="modalTitle">Fund detail</h2>
+        <div class="sub" id="modalSubtitle"></div>
+      </div>
+      <button class="modal-close" onclick="closeFundDetail()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================================
+// DATA — sourced from EPIC LLC.xlsx (latest version, 2026-05) and statements
+// ============================================================================
+
+const MEMBERS = [
+  { name: "Daniel Peterson", share: 0.27777777778 },
+  { name: "Neil Patel",      share: 0.27777777778 },
+  { name: "Nathan Stoll",    share: 0.27777777778 },
+  { name: "Saurabh Sharma",  share: 0.13888888889 },
+  { name: "Brian Peterson",  share: 0.02777777778 },
+];
+
+const YEARS = [2020, 2021, 2022, 2023, 2024, 2025, 2026];
+
+// Each holding: per-year $ called, distributions, and most recent NAV statement.
+// nav: { value, asOf } — set to null when no statement on file (shown as "—" and editable).
+const HOLDINGS = [
+  {
+    id: "tau1", name: "Tau Ventures Fund I", type: "Fund",
+    bucket: "epic",
+    commitment: 360000,
+    called: { 2020: 90000, 2021: 72000, 2022: 36000, 2023: 36000, 2024: 36000, 2025: 0, 2026: 0 },
+    distributed: { 2022: 36000, 2025: 5714.04 },
+    nav: { value: 413748, asOf: "2025-12-31", source: "GP statement (fair value)" },
+    notes: "Q4 2025 GP capital account. ITD net unrealized gain $246k. ITD distributions $41,714 (incl. 2022 $36k + 2025 $5,714 on 3/5/25)."
+  },
+  {
+    id: "tauopp", name: "Tau Opportunity Fund", type: "Fund",
+    bucket: "epic",
+    commitment: 270000,
+    called: { 2021: 40500, 2022: 54000, 2023: 40500, 2024: 27000, 2025: 27000, 2026: 0 },
+    distributed: { 2025: 1452.22 },
+    nav: { value: 193482, asOf: "2025-12-31", source: "GP statement (fair value)" },
+    notes: "Q4 2025 GP capital account. Called ITD $189k across 5 calls (2021–2025). Summary tab of EPIC LLC.xlsx is stale here — the per-call detail on the Tau Opportunity Fund tab is authoritative."
+  },
+  {
+    id: "tau2", name: "Tau Ventures Fund II", type: "Fund",
+    bucket: "epic",
+    commitment: 216000,
+    called: { 2022: 32400, 2023: 43200, 2024: 32400, 2025: 21600, 2026: 0 },
+    distributed: { 2025: 275.73 },
+    nav: { value: 165680, asOf: "2025-12-31", source: "GP statement (fair value)" },
+    notes: "Q4 2025 GP capital account. Big YTD unrealized markup ($57k)."
+  },
+  {
+    id: "nava", name: "Nava Ventures", type: "Fund",
+    bucket: "epic",
+    commitment: 360000,
+    called: { 2021: 31045, 2022: 126274, 2023: 99912, 2024: 65248, 2025: 19371, 2026: 0 },
+    distributed: {},
+    nav: { value: 1066157, asOf: "2025-12-31", source: "GP statement (fair value)" },
+    notes: "Q4 2025 GP capital account. ITD $970k unrealized appreciation, driven by OpenLoop Health (Series A position marked from $11.7M cost to $407M FV at fund level)."
+  },
+  {
+    id: "fpv", name: "FPV Fund I", type: "Fund",
+    bucket: "epic",
+    commitment: 360000,
+    called: { 2022: 71891.89, 2023: 39600, 2024: 99720, 2025: 81720, 2026: 9720 },
+    distributed: {},
+    nav: { value: 324831.27, asOf: "2025-12-31", source: "Q4 2025 GP statement" },
+    notes: "Q4 2025 GP statement. 15 capital calls to date, $302,651.89 ITD. 2026 calls: Jan 19 $3,600 + Apr 27 $6,120 = $9,720."
+  },
+  {
+    id: "betaworks", name: "Betaworks Ventures 3.0", type: "Fund",
+    bucket: "epic",
+    commitment: 180000,
+    called: { 2024: 45000, 2025: 27000, 2026: 18000 },
+    distributed: {},
+    nav: { value: 67213.09, asOf: "2025-12-31", source: "Carta capital account (fair value)" },
+    notes: "Carta capital balance as of 12/31/2025. Four calls to date totaling $90k ITD (Nov 2024 $45k, Jun 2025 $13.5k, Oct 2025 $13.5k, Mar 2026 $18k paid Apr 23). Fund 50% called overall ($33M of $66M)."
+  },
+  {
+    id: "cherish", name: "Cherish Health", type: "Direct (SAFE)",
+    bucket: "epic",
+    commitment: 54000,
+    called: { 2020: 54000 },
+    distributed: {},
+    nav: { value: 54000, asOf: "2020-08-14", source: "At cost" },
+    notes: "Direct SAFE investment, 20% discount. No mark-to-market — held at cost pending conversion."
+  },
+  {
+    id: "torramics", name: "Torramics", type: "Direct (SAFE)",
+    bucket: "epic",
+    commitment: 50000,
+    called: { 2024: 50000 },
+    distributed: {},
+    nav: { value: 50000, asOf: "2024-04-19", source: "At cost" },
+    notes: "2024 post-money SAFE at $20M cap is converting in the 2026 Series Seed-1 to Seed-6 Preferred Stock financing — SPA, Voting Agreement, and Investors' Rights Agreement on file in EPIC/Funds/Torramics/Legal/Series Seed Financing (2026)/, signed by Neil as Managing Partner. NAV still held at cost pending closing & EPIC's allocated share class."
+  },
+  {
+    id: "zero", name: "Zero Capital Fund I", type: "Fund",
+    bucket: "epic",
+    commitment: 100000,
+    called: { 2026: 40000 },
+    distributed: {},
+    nav: { value: 40000, asOf: "2026-04-23", source: "At cost (no EPIC statement yet)" },
+    notes: "New EPIC commitment: $100k of Zero Capital Fund I LP's $1.26M total fund (≈7.94% ownership). First capital call $40k due 4/23/2026. Fund-level Q4 2024 financials on file show one portfolio company (LivePM dba Scissor, $100k cost). No EPIC-specific investor statement yet — NAV held at cost."
+  },
+  // -------------- Personal holdings (Neil's, outside EPIC) -----------------
+  {
+    id: "aw1", name: "Acquired Wisdom Fund I", type: "Fund",
+    bucket: "personal",
+    commitment: 25000,
+    called: { 2023: 9944, 2024: 2556, 2025: 2500, 2026: 0 },
+    distributed: {},
+    nav: { value: 16925, asOf: "2026-03-31", source: "Q1 2026 GP statement" },
+    notes: "Neil's personal commitment. $15k contributed against $25k commitment. Fund-level invested in 12 companies (top markup: Blok Intelligence 4.44x). 19 quarters of NAV history on file."
+  },
+  {
+    id: "ensemble", name: "Ensemble VC II", type: "Fund",
+    bucket: "personal",
+    commitment: 100000,
+    called: { 2021: 17000, 2022: 22000, 2023: 2200, 2024: 18442.36, 2025: 12857.63, 2026: 3100 },
+    distributed: { 2023: 675.28 },
+    nav: { value: 77477.16, asOf: "2025-12-31", source: "Carta capital account (fair value)" },
+    notes: "Personal commitment of $100k. 13 capital calls 2021–2026, $75.6k ITD. Single distribution of $675 in 2023. NAV $77,477 against $74,924 invested net of distributions = 1.03x TVPI."
+  },
+];
+
+// Capital calls — recent and upcoming, sourced from PDFs on file
+const CALLS = [
+  { date: "2026-04-27", fund: "FPV Fund I",             amount: 6120,   status: "Paid" },
+  { date: "2026-04-23", fund: "Zero Capital Fund I",    amount: 40000,  status: "Paid" },
+  { date: "2026-03-04", fund: "Betaworks Ventures 3.0", amount: 18000,  status: "Paid" },
+  { date: "2026-01-16", fund: "Ensemble VC II",         amount: 3100,   status: "Paid" },
+  { date: "2025-10-14", fund: "Ensemble VC II",         amount: 3008,   status: "Paid" },
+  { date: "2025-10-02", fund: "Acquired Wisdom Fund I", amount: 2500,   status: "Paid" },
+  { date: "2025-04-22", fund: "Ensemble VC II",         amount: 2750,   status: "Paid" },
+  { date: "2025-02-13", fund: "Ensemble VC II",         amount: 7100,   status: "Paid" },
+  { date: "2024-10-07", fund: "Acquired Wisdom Fund I", amount: 2500,   status: "Paid" },
+  { date: "2024-09-26", fund: "Ensemble VC II",         amount: 7000,   status: "Paid" },
+  { date: "2024-07-15", fund: "Ensemble VC II",         amount: 3900,   status: "Paid" },
+  { date: "2024-04-10", fund: "Ensemble VC II",         amount: 3771,   status: "Paid" },
+  { date: "2024-01-17", fund: "Ensemble VC II",         amount: 3771,   status: "Paid" },
+  { date: "2023-09-29", fund: "Acquired Wisdom Fund I", amount: 2500,   status: "Paid" },
+  { date: "2023-09-08", fund: "Ensemble VC II",         amount: 2200,   status: "Paid" },
+  { date: "2022-09-13", fund: "Ensemble VC II",         amount: 4500,   status: "Paid" },
+  { date: "2022-05-04", fund: "Ensemble VC II",         amount: 10500,  status: "Paid" },
+  { date: "2022-02-14", fund: "Ensemble VC II",         amount: 7000,   status: "Paid" },
+  { date: "2021-12-20", fund: "Ensemble VC II",         amount: 17000,  status: "Paid" },
+  { date: "2026-01-19", fund: "FPV Fund I",             amount: 3600,   status: "Paid" },
+  { date: "2025-11-10", fund: "FPV Fund I",             amount: 4680,   status: "Paid" },
+  { date: "2025-10-21", fund: "Tau Opportunity Fund",   amount: 27000,  status: "Paid" },
+  { date: "2025-10-17", fund: "Betaworks Ventures 3.0", amount: 13500,  status: "Paid" },
+  { date: "2025-08-18", fund: "FPV Fund I",             amount: 7920,   status: "Paid" },
+  { date: "2025-07-16", fund: "Tau Ventures Fund II",   amount: 21600,  status: "Paid" },
+  { date: "2025-07-07", fund: "FPV Fund I",             amount: 17280,  status: "Paid" },
+  { date: "2025-06-20", fund: "Betaworks Ventures 3.0", amount: 13500,  status: "Paid" },
+  { date: "2025-04-14", fund: "FPV Fund I",             amount: 17640,  status: "Paid" },
+  { date: "2025-01-17", fund: "FPV Fund I",             amount: 34200,  status: "Paid" },
+  { date: "2024-11-20", fund: "Betaworks Ventures 3.0", amount: 45000,  status: "Paid" },
+  { date: "2024-11-04", fund: "FPV Fund I",             amount: 31320,  status: "Paid" },
+  { date: "2024-10-15", fund: "Tau Opportunity Fund",   amount: 27000,  status: "Paid" },
+  { date: "2024-07-23", fund: "Tau Ventures Fund I",    amount: 36000,  status: "Paid" },
+  { date: "2024-07-23", fund: "Tau Ventures Fund II",   amount: 32400,  status: "Paid" },
+  { date: "2024-07-08", fund: "FPV Fund I",             amount: 23400,  status: "Paid" },
+  { date: "2024-04-29", fund: "FPV Fund I",             amount: 25200,  status: "Paid" },
+  { date: "2024-04-19", fund: "Torramics (SAFE)",       amount: 50000,  status: "Paid" },
+  { date: "2024-02-16", fund: "FPV Fund I",             amount: 19800,  status: "Paid" },
+  { date: "2023-10-23", fund: "FPV Fund I",             amount: 12600,  status: "Paid" },
+  { date: "2023-03-11", fund: "FPV Fund I",             amount: 27000,  status: "Paid" },
+  { date: "2023-08-17", fund: "Tau Ventures Fund I",    amount: 36000,  status: "Paid" },
+  { date: "2023-08-14", fund: "Tau Ventures Fund II",   amount: 43200,  status: "Paid" },
+  { date: "2023-08-14", fund: "Tau Opportunity Fund",   amount: 40500,  status: "Paid" },
+  { date: "2022-09-12", fund: "FPV Fund I",             amount: 32292,  status: "Paid" },
+];
+
+// Quarterly NAV history (from GP capital account statements). For funds without
+// quarterly history on file, the array is empty.
+const NAV_HISTORY = {
+  tau1: [
+    { date: "2023-09-30", nav: 353968, contrib_itd: 234000, dist_itd: 36000 },
+    { date: "2023-12-31", nav: 359496, contrib_itd: 234000, dist_itd: 36000 },
+    { date: "2024-03-31", nav: 355512, contrib_itd: 234000, dist_itd: 36000 },
+    { date: "2024-06-30", nav: 354538, contrib_itd: 234000, dist_itd: 36000 },
+    { date: "2024-09-30", nav: 364345, contrib_itd: 270000, dist_itd: 36000 },
+    { date: "2024-12-31", nav: 365252, contrib_itd: 270000, dist_itd: 36000 },
+    { date: "2025-03-31", nav: 357820, contrib_itd: 270000, dist_itd: 41714 },
+    { date: "2025-06-30", nav: 366047, contrib_itd: 270000, dist_itd: 41714 },
+    { date: "2025-09-30", nav: 398573, contrib_itd: 270000, dist_itd: 41714 },
+    { date: "2025-12-31", nav: 413748, contrib_itd: 270000, dist_itd: 41714 },
+  ],
+  tau2: [
+    { date: "2023-06-30", nav: 26344,  contrib_itd: 32400,  dist_itd: 0 },
+    { date: "2023-09-30", nav: 68490,  contrib_itd: 75600,  dist_itd: 0 },
+    { date: "2023-12-31", nav: 68270,  contrib_itd: 75600,  dist_itd: 0 },
+    { date: "2024-03-31", nav: 67772,  contrib_itd: 75600,  dist_itd: 0 },
+    { date: "2024-06-30", nav: 66599,  contrib_itd: 75600,  dist_itd: 0 },
+    { date: "2024-09-30", nav: 95931,  contrib_itd: 108000, dist_itd: 0 },
+    { date: "2024-12-31", nav: 99964,  contrib_itd: 108000, dist_itd: 0 },
+    { date: "2025-03-31", nav: 105551, contrib_itd: 108000, dist_itd: 276 },
+    { date: "2025-06-30", nav: 107321, contrib_itd: 108000, dist_itd: 276 },
+    { date: "2025-09-30", nav: 156805, contrib_itd: 129600, dist_itd: 276 },
+    { date: "2025-12-31", nav: 165680, contrib_itd: 129600, dist_itd: 276 },
+  ],
+  tauopp: [
+    { date: "2023-09-30", nav: 122054, contrib_itd: 135000, dist_itd: 0 },
+    { date: "2023-12-31", nav: 120805, contrib_itd: 135000, dist_itd: 0 },
+    { date: "2024-03-31", nav: 121226, contrib_itd: 135000, dist_itd: 0 },
+    { date: "2024-06-30", nav: 120989, contrib_itd: 135000, dist_itd: 0 },
+    { date: "2024-09-30", nav: 118768, contrib_itd: 135000, dist_itd: 0 },
+    { date: "2024-12-31", nav: 142951, contrib_itd: 162000, dist_itd: 0 },
+    { date: "2025-03-31", nav: 137639, contrib_itd: 162000, dist_itd: 1452 },
+    { date: "2025-06-30", nav: 144588, contrib_itd: 162000, dist_itd: 1452 },
+    { date: "2025-09-30", nav: 162643, contrib_itd: 162000, dist_itd: 1452 },
+    { date: "2025-12-31", nav: 193482, contrib_itd: 189000, dist_itd: 1452 },
+  ],
+  fpv: [
+    { date: "2022-06-30", nav: 36939,  contrib_itd: 39600,  dist_itd: 0 },
+    { date: "2022-09-30", nav: 66826,  contrib_itd: 72000,  dist_itd: 0 },
+    { date: "2022-12-31", nav: 67034,  contrib_itd: 72000,  dist_itd: 0 },
+    { date: "2023-03-31", nav: 91611,  contrib_itd: 99000,  dist_itd: 0 },
+    { date: "2023-06-30", nav: 89867,  contrib_itd: 99000,  dist_itd: 0 },
+    { date: "2023-09-30", nav: 87377,  contrib_itd: 99000,  dist_itd: 0 },
+    { date: "2023-12-31", nav: 97760,  contrib_itd: 111600, dist_itd: 0 },
+    { date: "2024-03-31", nav: 121992, contrib_itd: 131400, dist_itd: 0 },
+    { date: "2024-06-30", nav: 144946, contrib_itd: 156600, dist_itd: 0 },
+    { date: "2024-09-30", nav: 172581, contrib_itd: 180000, dist_itd: 0 },
+    { date: "2024-12-31", nav: 209481, contrib_itd: 211320, dist_itd: 0 },
+    { date: "2025-03-31", nav: 249909, contrib_itd: 245520, dist_itd: 0 },
+    { date: "2025-06-30", nav: 271991, contrib_itd: 263160, dist_itd: 0 },
+    { date: "2025-09-30", nav: 319987, contrib_itd: 288360, dist_itd: 0 },
+    { date: "2025-12-31", nav: 324831, contrib_itd: 293040, dist_itd: 0 },
+  ],
+  nava: [
+    { date: "2021-12-31", nav: 28103,    contrib_itd: 31045,  dist_itd: 0 },
+    { date: "2022-03-31", nav: 49921,    contrib_itd: 55367,  dist_itd: 0 },
+    { date: "2022-06-30", nav: 64811,    contrib_itd: 72699,  dist_itd: 0 },
+    { date: "2022-09-30", nav: 133408,   contrib_itd: 139987, dist_itd: 0 },
+    { date: "2022-12-31", nav: 148232,   contrib_itd: 157319, dist_itd: 0 },
+    { date: "2023-03-31", nav: 169283,   contrib_itd: 180768, dist_itd: 0 },
+    { date: "2023-06-30", nav: 196555,   contrib_itd: 207275, dist_itd: 0 },
+    { date: "2023-09-30", nav: 233844,   contrib_itd: 247036, dist_itd: 0 },
+    { date: "2023-12-31", nav: 245964,   contrib_itd: 257231, dist_itd: 0 },
+    { date: "2024-03-31", nav: 255652,   contrib_itd: 257231, dist_itd: 0 },
+    { date: "2024-06-30", nav: 275691,   contrib_itd: 279660, dist_itd: 0 },
+    { date: "2024-09-30", nav: 412237,   contrib_itd: 310245, dist_itd: 0 },
+    { date: "2024-12-31", nav: 649503,   contrib_itd: 322479, dist_itd: 0 },
+    { date: "2025-03-31", nav: 743965,   contrib_itd: 341850, dist_itd: 0 },
+    { date: "2025-06-30", nav: 723352,   contrib_itd: 341850, dist_itd: 0 },
+    { date: "2025-09-30", nav: 1058372,  contrib_itd: 341850, dist_itd: 0 },
+    { date: "2025-12-31", nav: 1066157,  contrib_itd: 341850, dist_itd: 0 },
+  ],
+  betaworks: [
+    { date: "2024-12-31", nav: 38311,  contrib_itd: 45000, dist_itd: 0 },
+    { date: "2025-03-31", nav: 37547,  contrib_itd: 45000, dist_itd: 0 },
+    { date: "2025-06-30", nav: 53331,  contrib_itd: 58500, dist_itd: 0 },
+    { date: "2025-09-30", nav: 55180,  contrib_itd: 58500, dist_itd: 0 },
+    { date: "2025-12-31", nav: 67213,  contrib_itd: 72000, dist_itd: 0 },
+  ],
+  ensemble: [
+    { date: "2023-06-30", nav: 37823,  contrib_itd: 39200,  dist_itd: 0 },
+    { date: "2023-09-30", nav: 36259,  contrib_itd: 41400,  dist_itd: 675 },
+    { date: "2023-12-31", nav: 35586,  contrib_itd: 41400,  dist_itd: 675 },
+    { date: "2024-03-31", nav: 38641,  contrib_itd: 45171,  dist_itd: 675 },
+    { date: "2024-06-30", nav: 41736,  contrib_itd: 48942,  dist_itd: 675 },
+    { date: "2024-09-30", nav: 55682,  contrib_itd: 59842,  dist_itd: 675 },
+    { date: "2024-12-31", nav: 50096,  contrib_itd: 59842,  dist_itd: 675 },
+    { date: "2025-03-31", nav: 66560,  contrib_itd: 66942,  dist_itd: 675 },
+    { date: "2025-06-30", nav: 70874,  contrib_itd: 69692,  dist_itd: 675 },
+    { date: "2025-09-30", nav: 70346,  contrib_itd: 69692,  dist_itd: 675 },
+    { date: "2025-12-31", nav: 77477,  contrib_itd: 72700,  dist_itd: 675 },
+  ],
+  aw1: [
+    { date: "2021-12-31", nav: 3642,  contrib_itd: 0,     dist_itd: 0 },
+    { date: "2022-03-31", nav: 3624,  contrib_itd: 0,     dist_itd: 0 },
+    { date: "2022-06-30", nav: 3567,  contrib_itd: 0,     dist_itd: 0 },
+    { date: "2023-03-31", nav: 6972,  contrib_itd: 7258,  dist_itd: 0 },
+    { date: "2023-06-30", nav: 6864,  contrib_itd: 7202,  dist_itd: 0 },
+    { date: "2023-09-30", nav: 7155,  contrib_itd: 7500,  dist_itd: 0 },
+    { date: "2023-12-31", nav: 9558,  contrib_itd: 9944,  dist_itd: 0 },
+    { date: "2024-03-31", nav: 9636,  contrib_itd: 10000, dist_itd: 0 },
+    { date: "2024-06-30", nav: 9684,  contrib_itd: 10000, dist_itd: 0 },
+    { date: "2024-09-30", nav: 9727,  contrib_itd: 10000, dist_itd: 0 },
+    { date: "2024-12-31", nav: 12835, contrib_itd: 12500, dist_itd: 0 },
+    { date: "2025-03-31", nav: 13377, contrib_itd: 12500, dist_itd: 0 },
+    { date: "2025-06-30", nav: 14366, contrib_itd: 12500, dist_itd: 0 },
+    { date: "2025-09-30", nav: 14555, contrib_itd: 12500, dist_itd: 0 },
+    { date: "2025-12-31", nav: 16967, contrib_itd: 15000, dist_itd: 0 },
+    { date: "2026-03-31", nav: 16925, contrib_itd: 15000, dist_itd: 0 },
+  ],
+};
+
+// Portfolio companies (fund-level positions, rolled up across share classes).
+// Source: Schedule of Investments in each fund's 4Q25 financial statements.
+// Cost and FV are fund-level totals — EPIC's pro-rata share is its ownership % of the fund.
+// asOf: 2025-12-31 for all entries.
+const PORTFOLIO_COMPANIES = {
+  tau1: [
+    { co: "Iterative Health",       cost: 340129,  fv: 4600000,  industry: "Healthcare AI" },
+    { co: "Armorcode",              cost: 1704328, fv: 4959428,  industry: "Cybersecurity" },
+    { co: "Tau Ventures SPV Labelbox", cost: 2060100, fv: 2060100, industry: "SPV / AI data" },
+    { co: "Signos",                 cost: 300000,  fv: 1963483,  industry: "Health" },
+    { co: "Alaffia Technology Solutions", cost: 300000, fv: 1187175, industry: "Healthcare claims" },
+    { co: "Renee (SixD)",           cost: 1000000, fv: 1020557,  industry: "Robotics" },
+    { co: "Banjo Health",           cost: 750045,  fv: 896951,   industry: "Healthcare" },
+    { co: "Labelbox",               cost: 249997,  fv: 825000,   industry: "AI data" },
+    { co: "Elemental Machines",     cost: 524075,  fv: 524644,   industry: "Industrial IoT" },
+    { co: "Cerby",                  cost: 149999,  fv: 392119,   industry: "Cybersecurity" },
+    { co: "Passage ID (acq. 1Password)", cost: 125000, fv: 334681, industry: "Identity" },
+    { co: "Teiko Bio",              cost: 250000,  fv: 294116,   industry: "Biotech" },
+    { co: "Sound Health Systems",   cost: 214531,  fv: 268148,   industry: "Health" },
+    { co: "FidoCure (OneHealthCo)", cost: 256992,  fv: 257551,   industry: "Veterinary health" },
+    { co: "Chef Robotics",          cost: 60655,   fv: 255014,   industry: "Robotics" },
+    { co: "Biotia",                 cost: 153005,  fv: 203556,   industry: "Genomics" },
+    { co: "Salu Ltd (SAFE)",        cost: 100000,  fv: 100000,   industry: "Health" },
+    { co: "Decoded Health",         cost: 250000,  fv: 61991,    industry: "Health" },
+    { co: "Atheer",                 cost: 50000,   fv: 50000,    industry: "AR/XR" },
+    { co: "Resilient Lifescience (SAFE)", cost: 50000, fv: 50000, industry: "Biotech" },
+    { co: "Ghost Security",         cost: 249999,  fv: 249999,   industry: "Cybersecurity" },
+    { co: "Infinitus",              cost: 5000,    fv: 83626,    industry: "Healthcare AI" },
+    { co: "Beacon Tech (Marigold Health)", cost: 249990, fv: 20613, industry: "Mental health" },
+    { co: "Absci (acq. Totient)",   cost: 45657,   fv: 11413,    industry: "Biotech (public)" },
+    { co: "RapidDeploy",            cost: 0,       fv: 7525,     industry: "Public safety" },
+    { co: "Freedom Robotics",       cost: 10000,   fv: 4977,     industry: "Robotics" },
+    { co: "Blendid (6D Bytes)",     cost: 10000,   fv: 2236,     industry: "Food robotics" },
+  ],
+  tauopp: [
+    { co: "Oath Surgical (fka Cleo)", cost: 1000000, fv: 1726925, industry: "Healthcare devices" },
+    { co: "Armorcode",              cost: 404328,  fv: 1378151,  industry: "Cybersecurity" },
+    { co: "Tau Ventures SPV Labelbox", cost: 1320205, fv: 1320205, industry: "SPV / AI data" },
+    { co: "Vecna Robotics",         cost: 835562,  fv: 1285391,  industry: "Robotics" },
+    { co: "Alaffia Technology Solutions", cost: 1050001, fv: 1201908, industry: "Healthcare claims" },
+    { co: "AmplifyMD",              cost: 1004988, fv: 1161210,  industry: "Telehealth" },
+    { co: "Uptiq",                  cost: 900000,  fv: 1051480,  industry: "Fintech" },
+    { co: "Blueprint (HelloJoy)",   cost: 727492,  fv: 1007603,  industry: "Mental health" },
+    { co: "Tofu Technologies",      cost: 659996,  fv: 659996,   industry: "Software" },
+    { co: "Viven (Wisdom Labs.AI)", cost: 599993,  fv: 599993,   industry: "Software" },
+    { co: "Banjo Health",           cost: 546034,  fv: 586051,   industry: "Healthcare" },
+    { co: "Elemental Machines",     cost: 519075,  fv: 519075,   industry: "Industrial IoT" },
+    { co: "Netskope (fka Dasera)",  cost: 500000,  fv: 506856,   industry: "Cybersecurity" },
+    { co: "Autonomize",             cost: 499995,  fv: 499995,   industry: "Software" },
+    { co: "Drip Capital",           cost: 475174,  fv: 475174,   industry: "Fintech" },
+    { co: "DevOpsMx (SAFE)",        cost: 300000,  fv: 300000,   industry: "DevOps" },
+    { co: "Chef Robotics",          cost: 249998,  fv: 249998,   industry: "Robotics" },
+    { co: "Sami Health Data",       cost: 249998,  fv: 249998,   industry: "Health data" },
+    { co: "Kerna Laboratories (SAFE)", cost: 250000, fv: 250000, industry: "Healthcare" },
+    { co: "Tonic AI",               cost: 199998,  fv: 199998,   industry: "Data privacy" },
+    { co: "Sound Health Systems",   cost: 125000,  fv: 125000,   industry: "Health" },
+    { co: "Arpeggio Biosciences",   cost: 306685,  fv: 123770,   industry: "Biotech" },
+    { co: "Nilo (BlueCorp Health)", cost: 100000,  fv: 100000,   industry: "Health" },
+    { co: "Lalitha Corp",           cost: 99999,   fv: 99999,    industry: "Software" },
+    { co: "Causely",                cost: 99999,   fv: 99999,    industry: "Software" },
+    { co: "Verbal AI",              cost: 334999,  fv: 83750,    industry: "AI" },
+  ],
+  zero: [
+    { co: "LivePM dba Scissor",      cost: 100000,   fv: 100000,    industry: "Portfolio company (as of Q4 2024 fund-level)" },
+  ],
+  betaworks: [
+    { co: "Elide Interfaces",        cost: 1249998,  fv: 2545877,   industry: "Stealth AI hardware (Preferred)" },
+    { co: "Twin Labs",               cost: 1111530,  fv: 1850593,   industry: "Agentic task manipulation (Preferred)" },
+    { co: "Midsummer Studios",       cost: 843561,   fv: 843561,    industry: "AI game studio (Preferred + SAFE)" },
+    { co: "Hopscotch Labs",          cost: 675000,   fv: 675000,    industry: "Generative audio (Preferred)" },
+    { co: "TATO Technology Solutions", cost: 499999, fv: 683633,    industry: "AI for consulting (Preferred)" },
+    { co: "Pinnacle Intelligence",   cost: 600000,   fv: 600000,    industry: "Mental fitness (SAFE)" },
+    { co: "Unternet (PBC)",          cost: 576476,   fv: 576476,    industry: "Web for AI era (SAFE + Common)" },
+    { co: "Era Laboratories",        cost: 640000,   fv: 640000,    industry: "AI orchestration (SAFE)" },
+    { co: "2389 Research",           cost: 550000,   fv: 550000,    industry: "AI code synthesis (SAFE)" },
+    { co: "Possibility Foundry",     cost: 500000,   fv: 500000,    industry: "AI company building (SAFE)" },
+    { co: "Solaya Invest",           cost: 469314,   fv: 469314,    industry: "3D gaussian splatting (Preferred)" },
+    { co: "ESAI",                    cost: 425000,   fv: 425000,    industry: "AI college admissions (SAFE)" },
+    { co: "bear Labs",               cost: 400000,   fv: 400000,    industry: "AI travel infra (SAFE)" },
+    { co: "Common Tools",            cost: 400000,   fv: 400000,    industry: "AI-era web (SAFE)" },
+    { co: "Neurometric AI",          cost: 400000,   fv: 400000,    industry: "AI inference algorithms (SAFE)" },
+    { co: "Putty Computer",          cost: 375003,   fv: 375003,    industry: "Stealth hardware (SAFE+Common)" },
+    { co: "Helivan",                 cost: 350000,   fv: 350000,    industry: "Opinion geometry (SAFE)" },
+    { co: "AfterImage",              cost: 250005,   fv: 334355,    industry: "Healthcare law / patient comp (Preferred)" },
+    { co: "Ishmail",                 cost: 250000,   fv: 333311,    industry: "Agent interface (Preferred)" },
+    { co: "All Hands AI",            cost: 24999,    fv: 53535,     industry: "Open source dev agents (Preferred)" },
+    { co: "Photogram",               cost: 325000,   fv: 325000,    industry: "Hardware camera (SAFE)" },
+    { co: "DESSN AI",                cost: 325000,   fv: 325000,    industry: "AI UX changes (SAFE)" },
+    { co: "Autoplay AI",             cost: 325000,   fv: 325000,    industry: "Copilot for SaaS (SAFE)" },
+    { co: "Sarama",                  cost: 325000,   fv: 325000,    industry: "AI human-dog (SAFE)" },
+    { co: "URSULA COMPANION",        cost: 325000,   fv: 325000,    industry: "AI kids friend (SAFE)" },
+    { co: "+ 30 other SAFEs at $250k or less each", cost: 7250370, fv: 7250370, industry: "Aggregated SAFE positions at cost" },
+  ],
+  ensemble: [
+    { co: "Saronic Technologies",    cost: 7499995,  fv: 28254654,  industry: "Defense (Series A+B+C)" },
+    { co: "Chaos Industries",        cost: 3249995,  fv: 16953322,  industry: "Defense (Series B)" },
+    { co: "HelloJoy",                cost: 4364956,  fv: 6045628,   industry: "Mental health (Series A+B)" },
+    { co: "Manifest Cyber",          cost: 4999999,  fv: 4999999,   industry: "Cybersecurity (Series A)" },
+    { co: "Spot Insurance",          cost: 5999999,  fv: 4499999,   industry: "Insurtech (Series A) — markdown" },
+    { co: "Icon Technology",         cost: 6623667,  fv: 4168747,   industry: "Construction tech (Series B+B1+C) — markdown" },
+    { co: "Rain Technologies",       cost: 4055513,  fv: 3234008,   industry: "Fintech (Series A-1) — markdown" },
+    { co: "Loti AI",                 cost: 1632202,  fv: 3252197,   industry: "AI (Series A-2+A-4)" },
+    { co: "Clazar",                  cost: 3000000,  fv: 3000000,   industry: "Cloud marketplace (Series A)" },
+    { co: "Ensemble Continuation Fund", cost: 2411965, fv: 2411965, industry: "Continuation vehicle (Series A)" },
+    { co: "Chariot Defense (SAFE)",  cost: 1000000,  fv: 1000000,   industry: "Defense" },
+    { co: "Swimply",                 cost: 3499999,  fv: 820904,    industry: "Marketplace (Common) — markdown" },
+    { co: "UJET (Spiral Tech merger)", cost: 3000000, fv: 781958,   industry: "Customer support (Common+Warrant) — markdown" },
+    { co: "Nice Healthcare",         cost: 4000001,  fv: 565720,    industry: "Healthcare (Series A-1) — major markdown" },
+    { co: "Tiny Dino positions (7 SAFEs)", cost: 1625000, fv: 1625000, industry: "Aggregated incubator SAFEs" },
+    { co: "Tiny Dino - Happy Potato", cost: 199998,  fv: 199998,    industry: "Series Seed-1" },
+  ],
+  aw1: [
+    { co: "Blok Intelligence",       cost: 75000,    fv: 333333,    industry: "Software (SAFE)" },
+    { co: "Angler AI",               cost: 200000,   fv: 352273,    industry: "Software (SAFEs)" },
+    { co: "Lotus Laboratories",      cost: 75000,    fv: 206250,    industry: "Biotech (SAFE)" },
+    { co: "NOCAP Sports",            cost: 100000,   fv: 185000,    industry: "Sports tech (SAFE)" },
+    { co: "Creative Labs",           cost: 50000,    fv: 130000,    industry: "Consumer (SAFE)" },
+    { co: "Achievable",              cost: 50000,    fv: 50000,     industry: "Education (SAFE)" },
+    { co: "Dazzle AI",               cost: 249999,   fv: 249999,    industry: "AI (Series Seed)" },
+    { co: "Occipital",               cost: 300000,   fv: 194790,    industry: "AR/3D (Series A-1 + Common)" },
+    { co: "Affiniti Ventures",       cost: 100000,   fv: 100000,    industry: "Software (Series Seed)" },
+    { co: "BotBotGoose",             cost: 100000,   fv: 100000,    industry: "Software (SAFE)" },
+    { co: "Clafiya",                 cost: 75000,    fv: 75000,     industry: "Healthcare (SAFE)" },
+    { co: "Project Aeon",            cost: 75000,    fv: 75000,     industry: "Software (SAFE)" },
+  ],
+  fpv: [
+    { co: "Enveda Therapeutics",     cost: 64326735, fv: 108175299, industry: "Computational biology" },
+    { co: "Strand Therapeutics",     cost: 42443852, fv: 47822927,  industry: "Computational biology" },
+    { co: "Yendo Inc",               cost: 18472336, fv: 32447954,  industry: "Consumer" },
+    { co: "Anterior, Inc",           cost: 25529195, fv: 25529195,  industry: "Enterprise" },
+    { co: "XperienceOps, Inc",       cost: 10563548, fv: 24235010,  industry: "Enterprise" },
+    { co: "Other enterprise (US)",   cost: 76305705, fv: 97731207,  industry: "Aggregated (condensed schedule)" },
+    { co: "Other computational biology", cost: 37139780, fv: 28655124, industry: "Aggregated (condensed schedule)" },
+    { co: "Healthcare (US)",         cost: 11782713, fv: 11782713,  industry: "Aggregated (condensed schedule)" },
+    { co: "Finland enterprise",      cost: 9831212,  fv: 16530977,  industry: "Aggregated (condensed schedule)" },
+    { co: "Other consumer (US)",     cost: 8254568,  fv: 6008202,   industry: "Aggregated (condensed schedule)" },
+    { co: "UK enterprise",           cost: 4909520,  fv: 4909520,   industry: "Aggregated (condensed schedule)" },
+    { co: "Common stock holdings",   cost: 2034244,  fv: 2023410,   industry: "Aggregated (condensed schedule)" },
+    { co: "SAFEs (US)",              cost: 1726184,  fv: 1452228,   industry: "Aggregated (condensed schedule)" },
+    { co: "Investment fund interests", cost: 727298, fv: 746415,    industry: "Aggregated (condensed schedule)" },
+    { co: "Switzerland enterprise",  cost: 252859,   fv: 305423,    industry: "Aggregated (condensed schedule)" },
+    { co: "Australia consumer",      cost: 198808,   fv: 194186,    industry: "Aggregated (condensed schedule)" },
+  ],
+  nava: [
+    { co: "OpenLoop Health",         cost: 11749967, fv: 407644352, industry: "Healthcare tech" },
+    { co: "Hydrolix",                cost: 12359329, fv: 66121958,  industry: "Data infra" },
+    { co: "True Footage",            cost: 16177229, fv: 33643227,  industry: "PropTech" },
+    { co: "Yurts Technologies",      cost: 11999982, fv: 25249086,  industry: "AI" },
+    { co: "Union Systems",           cost: 11999999, fv: 12528145,  industry: "AI / data" },
+    { co: "MyCard",                  cost: 8499993,  fv: 12055791,  industry: "Fintech" },
+    { co: "Relief Technologies",     cost: 10349971, fv: 10349971,  industry: "Fintech" },
+    { co: "AeroVect Technologies",   cost: 9000000,  fv: 9000000,   industry: "Autonomous vehicles" },
+    { co: "Taut AI",                 cost: 8999999,  fv: 8999999,   industry: "AI" },
+    { co: "Superscript",             cost: 7000000,  fv: 8401061,   industry: "Insurtech" },
+    { co: "Interest Investments",    cost: 7500000,  fv: 7500000,   industry: "Fintech" },
+    { co: "Lang Artificial Intelligence", cost: 8990002, fv: 393329, industry: "AI" },
+    { co: "Anthology Labs (fka Caden) — WRITTEN OFF", cost: 0, fv: 0, industry: "Realized loss $11.4M in 2025" },
+    { co: "Gel Data (fka EdgeDB) — SOLD Dec 2025", cost: 0, fv: 1247264, industry: "Escrow receivable (15% discount); realized loss $435k" },
+  ],
+  tau2: [
+    { co: "Assort Health",          cost: 550000,  fv: 8432948,  industry: "Healthcare technology" },
+    { co: "Elsa Fertility (SAFE)",  cost: 725000,  fv: 2012690,  industry: "Healthcare technology" },
+    { co: "EJJ HealthTech (Olli Health)", cost: 1000000, fv: 2078981, industry: "Software" },
+    { co: "Handl Health",           cost: 500000,  fv: 2000000,  industry: "Healthcare technology" },
+    { co: "Trible AI (Trustible)",  cost: 600000,  fv: 600000,   industry: "Software" },
+    { co: "Cascala Health",         cost: 499977,  fv: 599853,   industry: "Healthcare technology" },
+    { co: "Dyania Health",          cost: 459631,  fv: 539513,   industry: "Healthcare technology" },
+    { co: "CalmWave",               cost: 599999,  fv: 633294,   industry: "Healthcare technology" },
+    { co: "CuraFi (SAFE)",          cost: 500000,  fv: 500000,   industry: "Healthcare technology" },
+    { co: "Decade",                 cost: 500000,  fv: 500000,   industry: "Entertainment" },
+    { co: "Klinic (SAFE)",          cost: 500000,  fv: 500000,   industry: "Healthcare technology" },
+    { co: "Revisto",                cost: 500000,  fv: 500000,   industry: "Healthcare technology" },
+    { co: "ShiftRx",                cost: 450000,  fv: 450000,   industry: "Human capital tech" },
+    { co: "Flo Recruit",            cost: 249999,  fv: 413245,   industry: "Software" },
+    { co: "Vidoso",                 cost: 400000,  fv: 400000,   industry: "Software" },
+    { co: "Beaming Health",         cost: 350000,  fv: 359349,   industry: "Healthcare technology" },
+    { co: "Transcera",              cost: 349999,  fv: 349999,   industry: "Healthcare technology" },
+    { co: "Distribute Labs (SAFE)", cost: 352500,  fv: 352500,   industry: "Software" },
+    { co: "Siftwell Analytics",     cost: 434999,  fv: 340802,   industry: "Healthcare technology" },
+    { co: "Fond of You (Somethings)", cost: 250000, fv: 339809,  industry: "Healthcare technology" },
+    { co: "Statisfy (SAFE)",        cost: 300000,  fv: 300000,   industry: "Marketing" },
+    { co: "Spektion",               cost: 299999,  fv: 299999,   industry: "Cybersecurity" },
+    { co: "Truly Home (SAFE)",      cost: 280000,  fv: 280000,   industry: "Software" },
+    { co: "Fourier Health",         cost: 275000,  fv: 275000,   industry: "Healthcare technology" },
+    { co: "Alpaca Health (SAFE)",   cost: 250000,  fv: 250000,   industry: "Healthcare technology" },
+    { co: "Altitude Cares",         cost: 250000,  fv: 250000,   industry: "Healthcare technology" },
+    { co: "Embrace of Learning (Note)", cost: 250000, fv: 250000, industry: "Healthcare technology" },
+    { co: "Crop Diagnostix",        cost: 250000,  fv: 250000,   industry: "Biotechnology" },
+    { co: "Openinfer (SAFE)",       cost: 250000,  fv: 250000,   industry: "Software" },
+    { co: "Ply Health (SAFE)",      cost: 250000,  fv: 250000,   industry: "Healthcare technology" },
+    { co: "Wizerr (SAFE)",          cost: 205000,  fv: 205000,   industry: "Software" },
+    { co: "Eve Security",           cost: 199999,  fv: 199999,   industry: "Cybersecurity" },
+    { co: "Titan Intake",           cost: 182350,  fv: 182350,   industry: "Healthcare technology" },
+    { co: "Selfiie",                cost: 500000,  fv: 125000,   industry: "Healthcare technology" },
+    { co: "Ensis AI (SAFE)",        cost: 900000,  fv: 111123,   industry: "Software" },
+  ],
+};
+
+// Inception-to-date capital account walkforward (from latest GP statement)
+// Keys: contributions, distributions, mgmtFees, interestIncome, opIncome,
+//       realizedGain, unrealizedGain, carriedInterest, syndicationCosts
+const CAP_ACCOUNT_ITD = {
+  tau1:    { asOf: "2025-12-31", contributions: 270000,  distributions: -41714, syndicationCosts: -478,  mgmtFees: -39886, opIncome: -102,  realizedGain: 25823, unrealizedGain: 246471, carriedInterest: -46366, ending: 413748 },
+  tau2:    { asOf: "2025-12-31", contributions: 129600,  distributions: -276,   interestIncome: 308,    mgmtFees: -16133, opIncome: 762,   realizedGain: -424,  unrealizedGain: 60855,  carriedInterest: -9012,  ending: 165680 },
+  tauopp:  { asOf: "2025-12-31", contributions: 189000,  distributions: -1452,                          mgmtFees: -25576, opIncome: 7005,  realizedGain: -3781, unrealizedGain: 29770,  carriedInterest: -1484,  ending: 193482 },
+  fpv:     { asOf: "2025-12-31", contributions: 293040,  distributions: 0,                              mgmtFees: null,   opIncome: null,  realizedGain: null,  unrealizedGain: null,   carriedInterest: null,    ending: 324831, note: "ITD breakdown not shown on EPIC investor statement. Fund-level: 2025 mgmt fee $11.0M, prof/org expenses $1.1M, net unrealized appreciation grew $30.4M → $94.1M (Y/Y change +$63.6M); total partners' capital $414.8M." },
+  nava:    { asOf: "2025-12-31", contributions: 341850,  distributions: 0,    syndicationCosts: -4859, mgmtFees: -36826, opIncome: 676,   realizedGain: -24220, unrealizedGain: 970447, carriedInterest: -180911, ending: 1066157 },
+  aw1:     { asOf: "2026-03-31", contributions: 15000,   distributions: 0,                              mgmtFees: -1687,  opIncome: 374,   realizedGain: 0,      unrealizedGain: 2978,   carriedInterest: -1281,   ending: 16925, note: "Management fee offset of $947 partially offsets fees. Other operating expenses $594 (net positive due to GP allocation)." },
+  ensemble: { asOf: "2025-12-31", contributions: 72700,   distributions: -675,                            mgmtFees: -5440,  opIncome: -509,  realizedGain: -4828,  unrealizedGain: 18180,  carriedInterest: 0,       ending: 77477, note: "ITD components estimated by summing quarterly Carta capital account changes from 6/30/2023 forward. Earliest Carta record is 6/30/2023; pre-mid-2023 history (2021-2022 calls of $39,200) not in Carta export." },
+};
+
+// Distributions — from GP distribution notices on file
+const DISTRIBUTIONS = [
+  { date: "2023-09-08", fund: "Ensemble VC II",       amount: 675.28,  note: "Distribution to Neil Patel (personal)" },
+  { date: "2025-03-05", fund: "Tau Ventures Fund I",  amount: 5714.04, note: "Short-term gains from fund reserves; pro rata to all 5 members" },
+  { date: "2025-03-05", fund: "Tau Opportunity Fund", amount: 1452.22, note: "Short-term gains from fund reserves; pro rata to all 5 members" },
+  { date: "2025-03-05", fund: "Tau Ventures Fund II", amount: 275.73,  note: "Short-term gains from fund reserves; pro rata to all 5 members" },
+  { date: "2022-09-29", fund: "Tau Ventures Fund I",  amount: 36000,   note: "Pro rata to all 5 members" },
+];
+
+// ============================================================================
+// STATE
+// ============================================================================
+let currentView = "epic";   // "epic" | "personal" | "combined"
+let charts = {};
+
+// Restore edited NAVs from localStorage
+function loadOverrides() {
+  try { return JSON.parse(localStorage.getItem("epic_nav_overrides") || "{}"); }
+  catch { return {}; }
+}
+function saveOverride(id, value) {
+  const ov = loadOverrides();
+  if (value === null || value === undefined || value === "") delete ov[id];
+  else ov[id] = value;
+  localStorage.setItem("epic_nav_overrides", JSON.stringify(ov));
+}
+function getNavValue(h) {
+  const ov = loadOverrides();
+  if (ov.hasOwnProperty(h.id)) return ov[h.id];
+  return h.nav.value;
+}
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+const fmt = n => n == null ? "—" : "$" + Math.round(n).toLocaleString();
+const fmtX = n => n == null ? "—" : n.toFixed(2) + "x";
+const fmtPct = n => n == null ? "—" : (n*100).toFixed(1) + "%";
+const sum = obj => Object.values(obj || {}).reduce((a,b)=>a+(+b||0),0);
+
+function filteredHoldings() {
+  if (currentView === "epic") return HOLDINGS.filter(h => h.bucket === "epic");
+  if (currentView === "personal") return HOLDINGS.filter(h => h.bucket === "personal");
+  return HOLDINGS;
+}
+
+function memberMultiplier() {
+  const sel = document.getElementById("memberSelect").value;
+  if (sel === "ALL") return { factor: 1, name: "EPIC total" };
+  const m = MEMBERS.find(x => x.name === sel);
+  return { factor: m.share, name: m.name };
+}
+
+// ============================================================================
+// RENDER
+// ============================================================================
+function setView(v) {
+  currentView = v;
+  document.querySelectorAll(".pill[data-view]").forEach(p => {
+    p.classList.remove("active", "personal", "combined");
+    if (p.dataset.view === v) {
+      p.classList.add("active");
+      if (v === "personal") p.classList.add("personal");
+      if (v === "combined") p.classList.add("combined");
+    }
+  });
+  // Member lens only meaningful for EPIC holdings
+  document.getElementById("memberSelect").disabled = (v === "personal");
+  render();
+}
+
+function render() {
+  renderKPIs();
+  renderHoldings();
+  renderCharts();
+  renderCalls();
+  renderDistributions();
+}
+
+function renderKPIs() {
+  const holdings = filteredHoldings();
+  const { factor, name } = memberMultiplier();
+  const useFactor = (currentView !== "personal");
+  const f = useFactor ? factor : 1;
+
+  let committed = 0, called = 0, distributed = 0, nav = 0, navCount = 0;
+  holdings.forEach(h => {
+    committed += h.commitment * f;
+    called += sum(h.called) * f;
+    distributed += sum(h.distributed) * f;
+    const v = getNavValue(h);
+    if (v != null && v !== "") { nav += (+v) * f; navCount++; }
+  });
+
+  const totalValue = nav + distributed;
+  const tvpi = called > 0 ? totalValue / called : null;
+  const dpi  = called > 0 ? distributed / called : null;
+  const pctCalled = committed > 0 ? called / committed : null;
+  const lens = useFactor && factor !== 1 ? ` (${name} share)` : "";
+
+  document.getElementById("kpis").innerHTML = `
+    <div class="kpi">
+      <div class="kpi-label">Committed${lens}</div>
+      <div class="kpi-value">${fmt(committed)}</div>
+      <div class="kpi-sub">${holdings.length} ${currentView === "combined" ? "total" : currentView} holding${holdings.length === 1 ? "" : "s"}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Called to date</div>
+      <div class="kpi-value">${fmt(called)}</div>
+      <div class="kpi-sub">${fmtPct(pctCalled)} of commitment</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">NAV (reported)</div>
+      <div class="kpi-value">${fmt(nav)}</div>
+      <div class="kpi-sub ${navCount < holdings.length ? "amber" : ""}">${navCount} of ${holdings.length} funds reporting</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Distributions</div>
+      <div class="kpi-value">${fmt(distributed)}</div>
+      <div class="kpi-sub">DPI ${fmtX(dpi)}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Total value</div>
+      <div class="kpi-value">${fmt(totalValue)}</div>
+      <div class="kpi-sub green">TVPI ${fmtX(tvpi)} (where NAV reported)</div>
+    </div>
+  `;
+}
+
+function renderHoldings() {
+  const holdings = filteredHoldings();
+  const { factor } = memberMultiplier();
+  const useFactor = (currentView !== "personal");
+  const f = useFactor ? factor : 1;
+
+  const tbody = document.getElementById("holdingsBody");
+  let tCommit=0, tCalled=0, tDist=0, tNav=0;
+  tbody.innerHTML = holdings.map(h => {
+    const commit = h.commitment * f;
+    const calledTotal = sum(h.called) * f;
+    const dist = sum(h.distributed) * f;
+    const navRaw = getNavValue(h);
+    const nav = navRaw != null && navRaw !== "" ? (+navRaw) * f : null;
+    const tv = nav != null ? nav + dist : null;
+    const tvpi = (calledTotal > 0 && tv != null) ? tv / calledTotal : null;
+    const dpi = calledTotal > 0 ? dist / calledTotal : null;
+    const pctCalled = commit > 0 ? calledTotal / commit : null;
+
+    tCommit += commit; tCalled += calledTotal; tDist += dist;
+    if (nav != null) tNav += nav;
+
+    const navAsOf = h.nav.asOf
+      ? `<div class="sub" style="font-size:11px;color:var(--muted)">as of ${h.nav.asOf}${h.nav.source ? " · " + h.nav.source : ""}</div>`
+      : "";
+    const tag = h.bucket === "personal" ? `<span class="tag personal">PERSONAL</span>` : `<span class="tag epic">EPIC</span>`;
+    const typeTag = h.type === "Fund" ? `<span class="tag fund">${h.type}</span>` : `<span class="tag direct">${h.type}</span>`;
+
+    return `
+      <tr class="holding-row" ondblclick="openFundDetail('${h.id}')">
+        <td><strong>${h.name}</strong> ${tag}</td>
+        <td>${typeTag}</td>
+        <td class="right">${fmt(commit)}</td>
+        <td class="right">${fmt(calledTotal)}</td>
+        <td class="right">${fmtPct(pctCalled)}</td>
+        <td class="right">${fmt(dist)}</td>
+        <td class="right">
+          <div class="nav-cell ${nav==null?"empty":""}" contenteditable="true"
+               data-id="${h.id}"
+               onblur="onNavEdit(event)"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${nav==null?"— add NAV":fmt(nav)}</div>
+          ${navAsOf}
+        </td>
+        <td class="right">${fmt(tv)}</td>
+        <td class="right">${fmtX(tvpi)}</td>
+        <td class="right">${fmtX(dpi)}</td>
+      </tr>`;
+  }).join("");
+
+  const totalTV = tNav + tDist;
+  const totalTVPI = tCalled > 0 ? totalTV / tCalled : null;
+  const totalDPI = tCalled > 0 ? tDist / tCalled : null;
+  const totalPctCalled = tCommit > 0 ? tCalled / tCommit : null;
+  tbody.innerHTML += `
+    <tr class="totals">
+      <td><strong>Total</strong></td>
+      <td></td>
+      <td class="right">${fmt(tCommit)}</td>
+      <td class="right">${fmt(tCalled)}</td>
+      <td class="right">${fmtPct(totalPctCalled)}</td>
+      <td class="right">${fmt(tDist)}</td>
+      <td class="right">${fmt(tNav)}</td>
+      <td class="right">${fmt(totalTV)}</td>
+      <td class="right">${fmtX(totalTVPI)}</td>
+      <td class="right">${fmtX(totalDPI)}</td>
+    </tr>`;
+
+  const missing = holdings.filter(h => getNavValue(h) == null).map(h => h.name);
+  const k1Funds = holdings.filter(h => h.nav.source === "K-1 tax basis").map(h => h.name);
+  let note = "";
+  if (missing.length) note += `NAV not yet on file for: ${missing.join(", ")}. `;
+  if (k1Funds.length) note += `${k1Funds.length} fund${k1Funds.length===1?"":"s"} use 2024 K-1 tax-basis capital accounts (${k1Funds.join(", ")}) — these tend to lag fair-value NAV. Replace with newer GP statements when received.`;
+  document.getElementById("navNote").textContent = note || "All holdings have a reported NAV.";
+}
+
+function onNavEdit(e) {
+  const id = e.target.dataset.id;
+  const txt = e.target.innerText.replace(/[$,\s]/g, "").replace(/[^\d.\-]/g, "");
+  const v = txt === "" ? null : parseFloat(txt);
+  saveOverride(id, isNaN(v) ? null : v);
+  render();
+}
+
+function colorFor(i) {
+  const palette = ["#6ba3ff","#9e7bff","#4ade80","#fbbf24","#f87171","#22d3ee","#fb923c","#a3e635","#f472b6","#94a3b8"];
+  return palette[i % palette.length];
+}
+
+function renderCharts() {
+  const holdings = filteredHoldings();
+
+  // Capital called by year (stacked)
+  const datasets = holdings.map((h, i) => ({
+    label: h.name,
+    data: YEARS.map(y => h.called[y] || 0),
+    backgroundColor: colorFor(i),
+  })).filter(d => d.data.some(v => v > 0));
+
+  if (charts.calledByYear) charts.calledByYear.destroy();
+  charts.calledByYear = new Chart(document.getElementById("chartCalledByYear"), {
+    type: "bar",
+    data: { labels: YEARS.map(String), datasets },
+    options: {
+      maintainAspectRatio: false,
+      responsive: true,
+      plugins: {
+        legend: { position: "bottom", labels: { color: "#8a94a3", font: { size: 11 }, boxWidth: 12 } },
+        tooltip: { callbacks: { label: c => `${c.dataset.label}: $${Math.round(c.parsed.y).toLocaleString()}` } }
+      },
+      scales: {
+        x: { stacked: true, ticks: { color: "#8a94a3" }, grid: { color: "#232b35" } },
+        y: { stacked: true, ticks: { color: "#8a94a3", callback: v => "$" + (v/1000) + "k" }, grid: { color: "#232b35" } }
+      }
+    }
+  });
+
+  // NAV composition donut (only funds with NAV)
+  const navHoldings = holdings.filter(h => getNavValue(h) != null);
+  if (charts.nav) charts.nav.destroy();
+  if (navHoldings.length === 0) {
+    document.getElementById("chartNav").parentElement.innerHTML =
+      `<div style="color:var(--muted);text-align:center;padding-top:120px;font-size:13px">No NAV reported yet — enter values in the holdings table to populate this chart.</div>`;
+  } else {
+    charts.nav = new Chart(document.getElementById("chartNav"), {
+      type: "doughnut",
+      data: {
+        labels: navHoldings.map(h => h.name),
+        datasets: [{
+          data: navHoldings.map(h => getNavValue(h)),
+          backgroundColor: navHoldings.map((_, i) => colorFor(i)),
+          borderColor: "#1a2028", borderWidth: 2
+        }]
+      },
+      options: {
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: "bottom", labels: { color: "#8a94a3", font: { size: 11 }, boxWidth: 12 } },
+          tooltip: { callbacks: { label: c => `${c.label}: $${Math.round(c.parsed).toLocaleString()}` } }
+        }
+      }
+    });
+  }
+
+}
+
+function renderCalls() {
+  document.getElementById("callsBody").innerHTML = CALLS.map(c => {
+    const isUpcoming = new Date(c.date) > new Date();
+    const statusColor = c.status === "Paid" ? "var(--green)" : (isUpcoming ? "var(--amber)" : "var(--muted)");
+    return `<tr>
+      <td>${c.date}</td>
+      <td>${c.fund}</td>
+      <td class="right">${fmt(c.amount)}</td>
+      <td><span style="color:${statusColor}">${c.status}${isUpcoming ? " (upcoming)" : ""}</span></td>
+    </tr>`;
+  }).join("");
+}
+
+function renderDistributions() {
+  document.getElementById("distBody").innerHTML = DISTRIBUTIONS.map(d => `
+    <tr>
+      <td>${d.date}</td>
+      <td>${d.fund}</td>
+      <td class="right">${fmt(d.amount)}</td>
+      <td><span style="color:var(--muted);font-size:12px">${d.note}</span></td>
+    </tr>
+  `).join("");
+}
+
+// ============================================================================
+// FUND DETAIL MODAL
+// ============================================================================
+let modalChart = null;
+
+function openFundDetail(id) {
+  const h = HOLDINGS.find(x => x.id === id);
+  if (!h) return;
+  const navRaw = getNavValue(h);
+  const nav = navRaw != null && navRaw !== "" ? +navRaw : null;
+  const called = sum(h.called);
+  const dist = sum(h.distributed);
+  const tv = nav != null ? nav + dist : null;
+  const tvpi = called > 0 && tv != null ? tv / called : null;
+  const dpi = called > 0 ? dist / called : null;
+  const tag = h.bucket === "personal" ? `<span class="tag personal">PERSONAL</span>` : `<span class="tag epic">EPIC</span>`;
+  const typeTag = h.type === "Fund" ? `<span class="tag fund">${h.type}</span>` : `<span class="tag direct">${h.type}</span>`;
+
+  document.getElementById("modalTitle").innerHTML = `${h.name} &nbsp; ${tag} ${typeTag}`;
+  document.getElementById("modalSubtitle").textContent =
+    `NAV as of ${h.nav.asOf || "—"}${h.nav.source ? " · " + h.nav.source : ""}`;
+
+  // KPIs
+  const kpiHTML = `
+    <div class="modal-kpis">
+      <div class="modal-kpi"><div class="label">Commitment</div><div class="value">${fmt(h.commitment)}</div></div>
+      <div class="modal-kpi"><div class="label">Called</div><div class="value">${fmt(called)}</div></div>
+      <div class="modal-kpi"><div class="label">Distributed</div><div class="value">${fmt(dist)}</div></div>
+      <div class="modal-kpi"><div class="label">NAV</div><div class="value">${fmt(nav)}</div></div>
+      <div class="modal-kpi"><div class="label">Total value</div><div class="value">${fmt(tv)}</div></div>
+      <div class="modal-kpi"><div class="label">TVPI</div><div class="value">${fmtX(tvpi)}</div></div>
+      <div class="modal-kpi"><div class="label">DPI</div><div class="value">${fmtX(dpi)}</div></div>
+      <div class="modal-kpi"><div class="label">% Called</div><div class="value">${fmtPct(h.commitment ? called/h.commitment : null)}</div></div>
+    </div>
+  `;
+
+  // NAV history chart
+  const history = NAV_HISTORY[h.id] || [];
+  let chartHTML = "";
+  if (history.length >= 2) {
+    chartHTML = `
+      <div class="modal-section">
+        <h3>NAV over time</h3>
+        <div class="nav-chart-wrap"><canvas id="modalNavChart"></canvas></div>
+      </div>`;
+  } else if (history.length === 1) {
+    chartHTML = `
+      <div class="modal-section">
+        <h3>NAV history</h3>
+        <p style="color:var(--muted);font-size:13px;margin:0">Only one data point on file (${history[0].date}). Upload additional quarterly statements to see a trend.</p>
+      </div>`;
+  }
+
+  // Capital account walkforward
+  const wf = CAP_ACCOUNT_ITD[h.id];
+  let wfHTML = "";
+  if (wf) {
+    const row = (label, val, opts={}) => {
+      if (val == null) return "";
+      const cls = val > 0 ? "pos" : (val < 0 ? "neg" : "");
+      return `<tr${opts.divider?' class="divider"':''}><td>${label}</td><td class="right ${cls}">${val < 0 ? "(" + fmt(-val) + ")" : fmt(val)}</td></tr>`;
+    };
+    wfHTML = `
+      <div class="modal-section">
+        <h3>Capital account walkforward (inception → ${wf.asOf})</h3>
+        <table class="walkforward">
+          ${row("Capital contributions", wf.contributions)}
+          ${row("Capital distributions", wf.distributions)}
+          ${row("Syndication / professional / other expenses", wf.syndicationCosts)}
+          ${row("Management fees", wf.mgmtFees)}
+          ${row("Interest income", wf.interestIncome)}
+          ${row("Net operating income (loss)", wf.opIncome)}
+          ${row("Net realized gain (loss)", wf.realizedGain)}
+          ${row("Net unrealized gain (loss)", wf.unrealizedGain)}
+          ${row("Carried interest accrued", wf.carriedInterest)}
+          ${row("Ending balance", wf.ending, {divider: true})}
+        </table>
+      </div>
+    `;
+  }
+
+  // Capital calls for this fund
+  const callsForFund = CALLS.filter(c => c.fund.startsWith(h.name) || (h.id === "torramics" && c.fund.startsWith("Torramics")));
+  let callsHTML = "";
+  if (callsForFund.length) {
+    callsHTML = `
+      <div class="modal-section">
+        <h3>Capital calls (${callsForFund.length})</h3>
+        <table>
+          <thead><tr><th>Date</th><th class="right">Amount</th><th>Status</th></tr></thead>
+          <tbody>${callsForFund.map(c => `<tr>
+            <td>${c.date}</td>
+            <td class="right">${fmt(c.amount)}</td>
+            <td><span style="color:${c.status==='Paid'?'var(--green)':'var(--amber)'}">${c.status}</span></td>
+          </tr>`).join("")}</tbody>
+        </table>
+      </div>`;
+  }
+
+  // Distributions for this fund
+  const distsForFund = DISTRIBUTIONS.filter(d => d.fund.startsWith(h.name));
+  let distsHTML = "";
+  if (distsForFund.length) {
+    distsHTML = `
+      <div class="modal-section">
+        <h3>Distributions (${distsForFund.length})</h3>
+        <table>
+          <thead><tr><th>Date</th><th class="right">Amount</th><th>Note</th></tr></thead>
+          <tbody>${distsForFund.map(d => `<tr>
+            <td>${d.date}</td>
+            <td class="right">${fmt(d.amount)}</td>
+            <td><span style="color:var(--muted);font-size:12px">${d.note}</span></td>
+          </tr>`).join("")}</tbody>
+        </table>
+      </div>`;
+  }
+
+  // Portfolio companies
+  const portfolio = PORTFOLIO_COMPANIES[h.id] || [];
+  let portfolioHTML = "";
+  if (portfolio.length) {
+    const sorted = [...portfolio].sort((a,b) => (b.fv || 0) - (a.fv || 0));
+    const totalCost = sorted.reduce((a,c)=>a+(+c.cost||0),0);
+    const totalFV   = sorted.reduce((a,c)=>a+(+c.fv||0),0);
+    const fundMultiple = totalCost > 0 ? totalFV / totalCost : null;
+    portfolioHTML = `
+      <div class="modal-section">
+        <h3>Portfolio companies <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">${portfolio.length} positions · fund-level totals as of 2025-12-31 · fund multiple ${fmtX(fundMultiple)}</span></h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>Industry</th>
+              <th class="right">Cost</th>
+              <th class="right">Fair value</th>
+              <th class="right">Multiple</th>
+              <th class="right">Unrealized G/(L)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sorted.map(c => {
+              const mult = c.cost > 0 ? c.fv / c.cost : null;
+              const gain = (c.fv||0) - (c.cost||0);
+              const gainCls = gain > 0 ? "pos" : (gain < 0 ? "neg" : "");
+              const multCls = (mult != null && mult > 1.5) ? "pos" : ((mult != null && mult < 1) ? "neg" : "");
+              return `<tr>
+                <td><strong>${c.co}</strong></td>
+                <td><span style="color:var(--muted);font-size:12px">${c.industry || ""}</span></td>
+                <td class="right">${fmt(c.cost)}</td>
+                <td class="right">${fmt(c.fv)}</td>
+                <td class="right ${multCls}" style="${multCls?'font-weight:600':''}">${fmtX(mult)}</td>
+                <td class="right ${gainCls}">${gain >= 0 ? fmt(gain) : "(" + fmt(-gain) + ")"}</td>
+              </tr>`;
+            }).join("")}
+            <tr class="totals">
+              <td><strong>Total</strong></td><td></td>
+              <td class="right">${fmt(totalCost)}</td>
+              <td class="right">${fmt(totalFV)}</td>
+              <td class="right">${fmtX(fundMultiple)}</td>
+              <td class="right">${fmt(totalFV - totalCost)}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="color:var(--muted);font-size:11px;margin:8px 0 0;font-style:italic">Cost and fair value are fund-level — EPIC's pro-rata share is its ownership % in this fund (≈2% for Tau I, ≈1% for Tau II, ≈8% for Tau Opportunity per 2024 K-1).</p>
+      </div>
+    `;
+  }
+
+  // Notes
+  const notesHTML = h.notes ? `
+    <div class="modal-section">
+      <h3>Notes</h3>
+      <p style="color:var(--muted);font-size:13px;margin:0">${h.notes}</p>
+    </div>` : "";
+
+  document.getElementById("modalBody").innerHTML =
+    kpiHTML + chartHTML + wfHTML + portfolioHTML + callsHTML + distsHTML + notesHTML;
+
+  document.getElementById("fundModal").classList.add("open");
+  document.body.style.overflow = "hidden";
+
+  // Draw NAV chart after DOM updates
+  if (history.length >= 2) {
+    setTimeout(() => {
+      if (modalChart) modalChart.destroy();
+      const ctx = document.getElementById("modalNavChart");
+      if (!ctx) return;
+      modalChart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: history.map(p => p.date),
+          datasets: [
+            {
+              label: "NAV", data: history.map(p => p.nav),
+              borderColor: "#6ba3ff", backgroundColor: "rgba(107,163,255,0.15)",
+              fill: true, tension: 0.25, pointRadius: 3,
+            },
+            {
+              label: "Contributed (ITD)", data: history.map(p => p.contrib_itd),
+              borderColor: "#fbbf24", backgroundColor: "transparent",
+              borderDash: [4,4], tension: 0, pointRadius: 2,
+            },
+          ]
+        },
+        options: {
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: "bottom", labels: { color: "#8a94a3", font: { size: 11 }, boxWidth: 12 } },
+            tooltip: { callbacks: { label: c => `${c.dataset.label}: $${Math.round(c.parsed.y).toLocaleString()}` } }
+          },
+          scales: {
+            x: { ticks: { color: "#8a94a3", maxRotation: 0, autoSkip: true }, grid: { color: "#232b35" } },
+            y: { ticks: { color: "#8a94a3", callback: v => "$" + (v/1000) + "k" }, grid: { color: "#232b35" } }
+          }
+        }
+      });
+    }, 50);
+  }
+}
+
+function closeFundDetail() {
+  document.getElementById("fundModal").classList.remove("open");
+  document.body.style.overflow = "";
+  if (modalChart) { modalChart.destroy(); modalChart = null; }
+}
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") closeFundDetail();
+});
+
+// Initial render
+render();
+</script>
+</body>
+</html>
