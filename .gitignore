@@ -5,3 +5,4 @@ node_modules/
 build-encrypted.js
 template.html
 .claude/
+credentials.txt
