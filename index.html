@@ -362,15 +362,23 @@ async function fetchRemoteDek(email) {
 }
 
 async function storeRemoteDek(email, salt, payload) {
-  const res = await fetch(`${DEK_API}/keys/${encodeURIComponent(email)}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${DEK_TOKEN}`,
-    },
-    body: JSON.stringify({ salt, payload }),
-  });
-  if (!res.ok) throw new Error("Failed to store key on server");
+  let res;
+  try {
+    res = await fetch(`${DEK_API}/keys/${encodeURIComponent(email)}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${DEK_TOKEN}`,
+      },
+      body: JSON.stringify({ salt, payload }),
+    });
+  } catch (networkErr) {
+    throw new Error("Network error saving key: " + networkErr.message);
+  }
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Failed to store key (HTTP ${res.status}): ${body}`);
+  }
 }
 
 // Decrypt the DEK using a member's email + password
