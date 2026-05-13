@@ -349,17 +349,35 @@ async function importDek(dekBytes) {
   return crypto.subtle.importKey("raw", dekBytes, { name: "AES-GCM" }, false, ["decrypt"]);
 }
 
+// --- Remote DEK API (Cloudflare Worker) ---
+const DEK_API = "https://epic-dek-store.neilpatel83.workers.dev";
+
+async function fetchRemoteDek(email) {
+  try {
+    const res = await fetch(`${DEK_API}/keys/${encodeURIComponent(email)}`);
+    if (!res.ok) return null;
+    return res.json();
+  } catch { return null; }
+}
+
+async function storeRemoteDek(email, salt, payload) {
+  await fetch(`${DEK_API}/keys/${encodeURIComponent(email)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ salt, payload }),
+  });
+}
+
 // Decrypt the DEK using a member's email + password
-// Checks localStorage for a custom password first, then falls back to HTML-embedded keys
+// Checks remote API for a custom password first, then falls back to HTML-embedded keys
 async function decryptDekForMember(email, password) {
-  // Try localStorage custom key first
-  const localKey = localStorage.getItem("epic_custom_dek_" + email);
-  if (localKey) {
+  // Try remote custom key first
+  const remoteKey = await fetchRemoteDek(email);
+  if (remoteKey) {
     try {
-      const parsed = JSON.parse(localKey);
-      const salt = Uint8Array.from(atob(parsed.salt), c => c.charCodeAt(0));
+      const salt = Uint8Array.from(atob(remoteKey.salt), c => c.charCodeAt(0));
       const memberKey = await deriveKey(password, salt, ["decrypt"]);
-      const dekBytes = await decryptBlob(parsed.payload, memberKey);
+      const dekBytes = await decryptBlob(remoteKey.payload, memberKey);
       return importDek(dekBytes);
     } catch {
       // Custom key failed — fall through to HTML keys
@@ -374,7 +392,7 @@ async function decryptDekForMember(email, password) {
   return importDek(dekBytes);
 }
 
-// Re-encrypt the DEK with a new password and store in localStorage
+// Re-encrypt the DEK with a new password and store via remote API
 async function changePassword(email, newPassword) {
   // We need the raw DEK bytes — get them from the current session
   const currentPass = sessionStorage.getItem("epicPass");
@@ -382,14 +400,13 @@ async function changePassword(email, newPassword) {
   if (!currentPass || !currentEmail) throw new Error("Not logged in");
 
   // Decrypt DEK with current credentials to get raw bytes
-  const localKey = localStorage.getItem("epic_custom_dek_" + currentEmail);
+  const remoteKey = await fetchRemoteDek(currentEmail);
   let dekBytes;
-  if (localKey) {
+  if (remoteKey) {
     try {
-      const parsed = JSON.parse(localKey);
-      const salt = Uint8Array.from(atob(parsed.salt), c => c.charCodeAt(0));
+      const salt = Uint8Array.from(atob(remoteKey.salt), c => c.charCodeAt(0));
       const key = await deriveKey(currentPass, salt, ["decrypt"]);
-      dekBytes = await decryptBlob(parsed.payload, key);
+      dekBytes = await decryptBlob(remoteKey.payload, key);
     } catch { dekBytes = null; }
   }
   if (!dekBytes) {
@@ -408,11 +425,10 @@ async function changePassword(email, newPassword) {
   combined.set(iv, 0);
   combined.set(new Uint8Array(encrypted), iv.byteLength);
 
-  // Store in localStorage
-  localStorage.setItem("epic_custom_dek_" + email, JSON.stringify({
-    salt: btoa(String.fromCharCode(...newSalt)),
-    payload: btoa(String.fromCharCode(...combined))
-  }));
+  // Store via remote API (works across devices/incognito)
+  const saltB64 = btoa(String.fromCharCode(...newSalt));
+  const payloadB64 = btoa(String.fromCharCode(...combined));
+  await storeRemoteDek(email, saltB64, payloadB64);
 
   // Update session
   sessionStorage.setItem("epicPass", newPassword);
