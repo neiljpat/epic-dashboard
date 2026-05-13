@@ -176,7 +176,7 @@
 <div id="gate" style="position:fixed;inset:0;background:#0f1419;z-index:999;display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
 
   <!-- State 1: Master passcode form (no localStorage key) -->
-  <form id="masterForm" action="/" method="post" style="display:none;background:#1a2028;border:1px solid #2d3744;border-radius:14px;padding:36px 40px;width:380px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+  <form id="masterForm" action="javascript:void(0)" method="post" style="display:none;background:#1a2028;border:1px solid #2d3744;border-radius:14px;padding:36px 40px;width:380px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
     <h1 style="margin:0 0 6px;font-size:18px;font-weight:600;color:#e8ecf1;">El Pen Investment Company</h1>
     <p style="margin:0 0 22px;color:#8a94a3;font-size:13px;">Portfolio dashboard — master passcode required</p>
     <input id="masterPass" type="password" name="passcode" autocomplete="off" autofocus placeholder="Master passcode"
@@ -187,7 +187,7 @@
   </form>
 
   <!-- State 3: Personal password login form (has localStorage key) -->
-  <form id="loginForm" action="/" method="post" style="display:none;background:#1a2028;border:1px solid #2d3744;border-radius:14px;padding:36px 40px;width:380px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+  <form id="loginForm" action="javascript:void(0)" method="post" style="display:none;background:#1a2028;border:1px solid #2d3744;border-radius:14px;padding:36px 40px;width:380px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
     <h1 style="margin:0 0 6px;font-size:18px;font-weight:600;color:#e8ecf1;">El Pen Investment Company</h1>
     <p style="margin:0 0 22px;color:#8a94a3;font-size:13px;">Portfolio dashboard — enter your saved password</p>
     <input type="text" name="username" autocomplete="username" value="member" readonly
@@ -206,7 +206,7 @@
 
 <!-- State 2: Set personal password modal (shown after master passcode unlock) -->
 <div id="setPasswordModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-  <form id="setPasswordForm" action="/" method="post" style="background:#1a2028;border:1px solid #2d3744;border-radius:14px;padding:36px 40px;width:420px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+  <form id="setPasswordForm" action="javascript:void(0)" method="post" style="background:#1a2028;border:1px solid #2d3744;border-radius:14px;padding:36px 40px;width:420px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
     <h2 style="margin:0 0 6px;font-size:17px;font-weight:600;color:#e8ecf1;">Set a personal password</h2>
     <p style="margin:0 0 20px;color:#8a94a3;font-size:13px;line-height:1.5;">Let Chrome generate and save a strong password so you don't need the master passcode next time.</p>
     <input type="text" name="username" autocomplete="username" value="member" readonly
