@@ -195,7 +195,8 @@
     </div>
     <div class="meta">
       As of <span id="asOf">May 12, 2026</span><br/>
-      <span class="sub">Source: EPIC ledger, GP statements, 2024 K-1s</span>
+      <span class="sub">Source: EPIC ledger, GP statements, 2024 K-1s</span><br/>
+      <a href="#" id="changePassLink" style="color:#6ba3ff;font-size:11px;text-decoration:none;" onclick="showChangePassword(); return false;">Change password</a>
     </div>
   </header>
 
@@ -285,6 +286,25 @@
   </div>
 </div>
 
+<!-- Change password modal -->
+<div id="changePassModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;" onclick="if(event.target===this) hideChangePassword()">
+  <form id="changePassForm" action="javascript:void(0)" method="post" style="background:#1a2028;border:1px solid #2d3744;border-radius:14px;padding:36px 40px;width:420px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+    <h2 style="margin:0 0 6px;font-size:17px;font-weight:600;color:#e8ecf1;">Change password</h2>
+    <p style="margin:0 0 20px;color:#8a94a3;font-size:13px;line-height:1.5;">Set a new password. Chrome can generate a strong one for you.</p>
+    <input type="text" name="username" autocomplete="username" value="" readonly id="cpUsername"
+      style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;" tabindex="-1" />
+    <input id="cpNewPass" type="password" name="password" autocomplete="new-password" placeholder="New password"
+      style="width:100%;padding:11px 14px;background:#232b35;border:1px solid #2d3744;border-radius:8px;color:#e8ecf1;font-size:14px;font-family:inherit;box-sizing:border-box;margin-bottom:10px;" />
+    <input id="cpConfirmPass" type="password" autocomplete="new-password" placeholder="Confirm password"
+      style="width:100%;padding:11px 14px;background:#232b35;border:1px solid #2d3744;border-radius:8px;color:#e8ecf1;font-size:14px;font-family:inherit;box-sizing:border-box;" />
+    <div id="cpError" style="color:#f87171;font-size:12px;margin-top:8px;min-height:16px;"></div>
+    <div style="display:flex;gap:10px;margin-top:14px;">
+      <button type="submit" id="cpSaveBtn" style="flex:1;padding:11px;background:#6ba3ff;border:none;border-radius:8px;color:#0a1220;font-weight:600;font-size:14px;cursor:pointer;">Save new password</button>
+      <button type="button" onclick="hideChangePassword()" style="padding:11px 18px;background:transparent;border:1px solid #2d3744;border-radius:8px;color:#8a94a3;font-size:14px;cursor:pointer;">Cancel</button>
+    </div>
+  </form>
+</div>
+
 <script>
 // ============================================================================
 // PER-MEMBER ENCRYPTED DATA
@@ -330,13 +350,72 @@ async function importDek(dekBytes) {
 }
 
 // Decrypt the DEK using a member's email + password
+// Checks localStorage for a custom password first, then falls back to HTML-embedded keys
 async function decryptDekForMember(email, password) {
+  // Try localStorage custom key first
+  const localKey = localStorage.getItem("epic_custom_dek_" + email);
+  if (localKey) {
+    try {
+      const parsed = JSON.parse(localKey);
+      const salt = Uint8Array.from(atob(parsed.salt), c => c.charCodeAt(0));
+      const memberKey = await deriveKey(password, salt, ["decrypt"]);
+      const dekBytes = await decryptBlob(parsed.payload, memberKey);
+      return importDek(dekBytes);
+    } catch {
+      // Custom key failed — fall through to HTML keys
+    }
+  }
+  // Fall back to HTML-embedded MEMBER_KEYS
   const entry = MEMBER_KEYS[email];
   if (!entry) throw new Error("Email not recognized");
   const salt = Uint8Array.from(atob(entry.salt), c => c.charCodeAt(0));
   const memberKey = await deriveKey(password, salt, ["decrypt"]);
   const dekBytes = await decryptBlob(entry.payload, memberKey);
   return importDek(dekBytes);
+}
+
+// Re-encrypt the DEK with a new password and store in localStorage
+async function changePassword(email, newPassword) {
+  // We need the raw DEK bytes — get them from the current session
+  const currentPass = sessionStorage.getItem("epicPass");
+  const currentEmail = sessionStorage.getItem("epicEmail");
+  if (!currentPass || !currentEmail) throw new Error("Not logged in");
+
+  // Decrypt DEK with current credentials to get raw bytes
+  const localKey = localStorage.getItem("epic_custom_dek_" + currentEmail);
+  let dekBytes;
+  if (localKey) {
+    try {
+      const parsed = JSON.parse(localKey);
+      const salt = Uint8Array.from(atob(parsed.salt), c => c.charCodeAt(0));
+      const key = await deriveKey(currentPass, salt, ["decrypt"]);
+      dekBytes = await decryptBlob(parsed.payload, key);
+    } catch { dekBytes = null; }
+  }
+  if (!dekBytes) {
+    const entry = MEMBER_KEYS[currentEmail];
+    const salt = Uint8Array.from(atob(entry.salt), c => c.charCodeAt(0));
+    const key = await deriveKey(currentPass, salt, ["decrypt"]);
+    dekBytes = await decryptBlob(entry.payload, key);
+  }
+
+  // Encrypt DEK with new password
+  const newSalt = crypto.getRandomValues(new Uint8Array(16));
+  const newKey = await deriveKey(newPassword, newSalt, ["encrypt"]);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, newKey, dekBytes);
+  const combined = new Uint8Array(iv.byteLength + encrypted.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(encrypted), iv.byteLength);
+
+  // Store in localStorage
+  localStorage.setItem("epic_custom_dek_" + email, JSON.stringify({
+    salt: btoa(String.fromCharCode(...newSalt)),
+    payload: btoa(String.fromCharCode(...combined))
+  }));
+
+  // Update session
+  sessionStorage.setItem("epicPass", newPassword);
 }
 
 // Decrypt financial data using the DEK
@@ -978,7 +1057,57 @@ function closeFundDetail() {
 }
 
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape") closeFundDetail();
+  if (e.key === "Escape") { closeFundDetail(); hideChangePassword(); }
+});
+
+// ============================================================================
+// CHANGE PASSWORD
+// ============================================================================
+function showChangePassword() {
+  const email = sessionStorage.getItem("epicEmail") || "";
+  document.getElementById("cpUsername").value = email;
+  document.getElementById("cpNewPass").value = "";
+  document.getElementById("cpConfirmPass").value = "";
+  document.getElementById("cpError").textContent = "";
+  document.getElementById("changePassModal").style.display = "flex";
+}
+
+function hideChangePassword() {
+  document.getElementById("changePassModal").style.display = "none";
+}
+
+document.getElementById("changePassForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const newPass = document.getElementById("cpNewPass").value;
+  const confirm = document.getElementById("cpConfirmPass").value;
+  const errEl = document.getElementById("cpError");
+  const btn = document.getElementById("cpSaveBtn");
+  errEl.textContent = "";
+
+  if (!newPass) { errEl.textContent = "Please enter a new password."; return; }
+  if (newPass.length < 8) { errEl.textContent = "Password must be at least 8 characters."; return; }
+  if (newPass !== confirm) { errEl.textContent = "Passwords do not match."; return; }
+
+  const email = sessionStorage.getItem("epicEmail");
+  if (!email) { errEl.textContent = "Session expired. Please reload and log in again."; return; }
+
+  btn.textContent = "Saving...";
+  btn.disabled = true;
+
+  try {
+    await changePassword(email, newPass);
+    hideChangePassword();
+    // Brief success indicator
+    const link = document.getElementById("changePassLink");
+    const orig = link.textContent;
+    link.textContent = "Password updated!";
+    link.style.color = "#4ade80";
+    setTimeout(() => { link.textContent = orig; link.style.color = "#6ba3ff"; }, 3000);
+  } catch (err) {
+    errEl.textContent = "Failed to change password: " + err.message;
+  }
+  btn.textContent = "Save new password";
+  btn.disabled = false;
 });
 </script>
 </body>
