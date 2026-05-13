@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>El Pen Investment Company — Portfolio Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g" crossorigin="anonymous"></script>
 <style>
   :root {
     --bg: #0f1419;
@@ -351,6 +351,7 @@ async function importDek(dekBytes) {
 
 // --- Remote DEK API (Cloudflare Worker) ---
 const DEK_API = "https://epic-dek-store.neilpatel83.workers.dev";
+const DEK_TOKEN = "OFE753F2jPgwFf/2SnKQHsfl/z0fl34PfV76TQ5BNBg=";
 
 async function fetchRemoteDek(email) {
   try {
@@ -361,11 +362,15 @@ async function fetchRemoteDek(email) {
 }
 
 async function storeRemoteDek(email, salt, payload) {
-  await fetch(`${DEK_API}/keys/${encodeURIComponent(email)}`, {
+  const res = await fetch(`${DEK_API}/keys/${encodeURIComponent(email)}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${DEK_TOKEN}`,
+    },
     body: JSON.stringify({ salt, payload }),
   });
+  if (!res.ok) throw new Error("Failed to store key on server");
 }
 
 // Decrypt the DEK using a member's email + password
