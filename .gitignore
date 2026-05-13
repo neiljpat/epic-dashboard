@@ -2,3 +2,6 @@
 *.swp
 *.bak
 node_modules/
+build-encrypted.js
+template.html
+.claude/
