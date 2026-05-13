@@ -6,3 +6,4 @@ build-encrypted.js
 template.html
 .claude/
 credentials.txt
+worker-config.json
