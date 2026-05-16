@@ -7,3 +7,4 @@ template.html
 .claude/
 credentials.txt
 worker-config.json
+.secrets.json
