@@ -8,3 +8,15 @@ template.html
 credentials.txt
 worker-config.json
 .secrets.json
+
+# Source documents are NEVER tracked in git.
+# Distribution to members happens via Google Drive (see docs/DRIVE-SETUP.md),
+# never via this public repo. Even fund-level docs (which are technically
+# already in the encrypted dashboard data) shouldn't be in clear text here.
+docs/source/**/*.pdf
+docs/source/**/*.PDF
+docs/source/**/*.doc
+docs/source/**/*.docx
+docs/source/**/*.xlsx
+docs/source/**/*.xls
+docs/source/**/*.csv

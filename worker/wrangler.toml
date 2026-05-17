@@ -1,0 +1,11 @@
+name = "epic-dek-store"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "DEK_STORE"
+id = "c252af0c73a7488ebb2bfe92cc15193b"
+
+# MEMBER_KIDS and ADMIN_TOKEN are set as Worker secrets, not vars:
+#   echo '<MEMBER_KIDS_JSON>' | npx wrangler secret put MEMBER_KIDS
+#   npx wrangler secret put ADMIN_TOKEN
