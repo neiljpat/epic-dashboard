@@ -8,6 +8,7 @@ template.html
 credentials.txt
 worker-config.json
 .secrets.json
+worker/.wrangler/
 
 # Source documents are NEVER tracked in git.
 # Distribution to members happens via Google Drive (see docs/DRIVE-SETUP.md),
