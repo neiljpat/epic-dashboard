@@ -301,7 +301,14 @@ If extending, in order of likely value:
 
 ## 10. Build time estimate
 
-For an experienced full-stack engineer starting from these specs:
+The reference implementation was built in ~3–4 days of evening/weekend work using AI-assisted development (Claude Code) with a non-engineer driver. With AI assistance, the work is dominated by **product decisions and data entry**, not coding:
+
+- Day 1: Get the data structure right, encryption working, multi-member login (the hard part of the threat-modeling)
+- Day 2: Wire up the Cloudflare Worker for cross-device sync; per-member permissioning
+- Day 3: Mobile responsive, sortable tables, member lens, analytics (IRR, forecasting, sector/company look-through, K-1 tracker)
+- Day 4: Polish, security review, PWA, bug fixes
+
+Without AI assistance, expect:
 - **MVP** (single user, no encryption, no remote sync): 1–2 weekends
 - **Multi-member + encryption + login**: +1 weekend
 - **Cloudflare Worker + cross-device password sync**: +1 day
@@ -309,4 +316,6 @@ For an experienced full-stack engineer starting from these specs:
 - **Mobile responsive + PWA**: +1 day
 - **Polish + sortable tables + member lens**: +1 day
 
-Total: ~3–4 focused weeks of work to match feature parity. Half that if AI-assisted.
+Total without AI: ~3–4 focused weeks. With AI assistance and a clear PRD/ERD in hand: ~2–4 days for someone who can read and direct generated code.
+
+The most expensive part is usually **getting the source data into the right shape** — the GP statements arrive in inconsistent PDF formats, and reconciling commitment / called / NAV / capital account components across them is the actual work. Plan more time for data wrangling than for code.
