@@ -89,6 +89,38 @@ Logical data model. The reference implementation stores all of this as a single 
                                 │   not_yet_due /  │
                                 │   na)            │
                                 └──────────────────┘
+
+                                ┌──────────────────┐
+                                │  DocumentFolder  │
+                                ├──────────────────┤
+                                │ holding_id (PK)  │
+                                │ drive_folder_url │
+                                │ ─────            │
+                                │ Plus a special   │
+                                │ "_root" entry    │
+                                │ for the top-     │
+                                │ level Drive      │
+                                │ folder.          │
+                                └──────────────────┘
+                                         │ 1:N
+                                         ▼
+                                ┌──────────────────┐
+                                │  DocumentFile    │
+                                ├──────────────────┤
+                                │ id (PK,          │
+                                │   Drive file ID) │
+                                │ holding_id (FK)  │
+                                │ name             │
+                                │ date             │
+                                │ type (Capital    │
+                                │   account/Fin.   │
+                                │   stmts/K-1/     │
+                                │   Capital call/  │
+                                │   Distribution/  │
+                                │   GP letter/     │
+                                │   Portfolio/     │
+                                │   Marketing/...) │
+                                └──────────────────┘
 ```
 
 ---
@@ -225,6 +257,27 @@ Tax document tracking. One row per (holding, tax_year).
 
 `na` for direct holdings that don't issue K-1s (SAFEs, common stock).
 
+### DocumentFolder
+Per-holding Google Drive folder URL for the documents section in the fund modal. One special row keyed `_root` for the parent folder shown in the dashboard footer.
+
+| Field | Type | Notes |
+|---|---|---|
+| holding_id | string (PK) | Holding's `id`, or the literal `_root` for the top-level folder |
+| drive_folder_url | string | `https://drive.google.com/drive/folders/<id>` |
+
+### DocumentFile
+A specific file inside a holding's Drive folder. Materialized at build time by enumerating Drive; baked into the encrypted blob. The dashboard renders these grouped by `type`.
+
+| Field | Type | Notes |
+|---|---|---|
+| id | string (PK) | Google Drive file ID |
+| holding_id | string (FK) | |
+| name | string | Display label (e.g. "Q4 2025 capital account"). Type-prefix is stripped when rendered inside its category section. |
+| date | date | YYYY-MM-DD. Quarterly docs use the end-of-quarter date; K-1s and audited stmts use Dec 31; capital calls use the actual due date. Empty for undated reference / marketing materials. |
+| type | enum | `Capital account` / `Financial statements` / `Audited fin stmts` / `Schedule` / `K-1` / `Tax estimates` / `Capital call` / `Distribution` / `GP letter` / `Portfolio` / `Marketing` / `Press` / `Reference`. Drives both category grouping and badge display. |
+
+**Used for**: rendering the categorized file list in the fund detail modal's Documents section with direct-download links (`drive.google.com/uc?export=download&id=<id>`).
+
 ---
 
 ## Cardinality summary
@@ -236,6 +289,8 @@ Tax document tracking. One row per (holding, tax_year).
 - **Holding 1 — N UnderlyingCompany**
 - **Holding 1 — 1 CapAccount** (most recent only) / **Holding 1 — N CapAccount** (if storing snapshots)
 - **Holding 1 — N K1Status** (one per tax year)
+- **Holding 1 — 1 DocumentFolder** (zero or one Drive folder URL per holding; plus a single `_root` entry)
+- **Holding 1 — N DocumentFile** (zero or more files per fund's Drive folder)
 
 ---
 
@@ -274,6 +329,20 @@ const DATA = {
   },
   K1_STATUS: {
     tau1: { 2020: "received", 2021: "received", ..., 2025: "pending" },
+    ...
+  },
+  DOCUMENTS: {
+    _root:     "https://drive.google.com/drive/folders/...",  // shared root
+    tau1:      "https://drive.google.com/drive/folders/...",
+    tau2:      "https://drive.google.com/drive/folders/...",
+    // ... per-fund folder URLs ...
+  },
+  DOCUMENT_FILES: {
+    tau1: [
+      { name: "Q4 2025 capital account", id: "<drive-file-id>", date: "2025-12-31", type: "Capital account" },
+      { name: "2025 K-1 to EPIC",        id: "<drive-file-id>", date: "2025-12-31", type: "K-1" },
+      // ... grouped by type in the UI ...
+    ],
     ...
   },
 };
