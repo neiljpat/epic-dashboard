@@ -168,16 +168,31 @@ async function handleSettlementsCollection(request, env, cors) {
     let body;
     try { body = await request.json(); } catch { return json({ error: "Invalid JSON" }, 400, cors); }
 
-    const { fromEmail, fromName, toEmail, toName, amount, method, note, kid } = body || {};
+    const { fromEmail, fromName, toEmail, toName, amount, method, note, kid, status: bodyStatus } = body || {};
     if (!ALLOWED_EMAILS.includes(fromEmail) || !ALLOWED_EMAILS.includes(toEmail)) {
       return json({ error: "Unknown member" }, 400, cors);
     }
     if (typeof amount !== "number" || amount <= 0 || amount > 1e6) {
       return json({ error: "Invalid amount" }, 400, cors);
     }
-    if (typeof kid !== "string" || !timingSafeEqual(kid, memberKids[fromEmail] || "")) {
-      return json({ error: "Unauthorized" }, 401, cors);
+    // Allowed actors: the sender (typical claim), the recipient (recording an
+    // out-of-band payment they received), or the manager (recording anything).
+    if (typeof kid !== "string") return json({ error: "Unauthorized" }, 401, cors);
+    const actorEmail = emailForKid(memberKids, kid);
+    if (!actorEmail) return json({ error: "Unauthorized" }, 401, cors);
+    const isManager   = actorEmail === MANAGING_MEMBER_EMAIL;
+    const isSender    = actorEmail === fromEmail;
+    const isRecipient = actorEmail === toEmail;
+    if (!isManager && !isSender && !isRecipient) {
+      return json({ error: "Forbidden" }, 403, cors);
     }
+    // Initial status: sender posting → pending (other side must confirm).
+    // Recipient or manager posting → may declare it confirmed directly.
+    let initialStatus = "pending";
+    if ((isRecipient || isManager) && bodyStatus === "confirmed") {
+      initialStatus = "confirmed";
+    }
+    const now = new Date().toISOString();
     const id = crypto.randomUUID();
     const entry = {
       id,
@@ -186,12 +201,13 @@ async function handleSettlementsCollection(request, env, cors) {
       amount: Math.round(amount * 100) / 100,
       method: String(method || ""),
       note: String(note || ""),
-      submittedAt: new Date().toISOString(),
-      status: "pending",
-      confirmedAt: null,
+      submittedAt: now,
+      submittedBy: actorEmail,
+      status: initialStatus,
+      confirmedAt: initialStatus === "confirmed" ? now : null,
     };
     await env.DEK_STORE.put(`settle:${id}`, JSON.stringify(entry));
-    return json({ id, status: "pending" }, 201, cors);
+    return json({ id, status: initialStatus }, 201, cors);
   }
 
   return json({ error: "Method not allowed" }, 405, cors);
