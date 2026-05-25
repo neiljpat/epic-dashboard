@@ -246,7 +246,12 @@ async function handleSettlementsItem(request, env, cors, id) {
     const { kid } = body || {};
     const actorEmail = emailForKid(memberKids, kid);
     if (!actorEmail) return json({ error: "Unauthorized" }, 401, cors);
-    if (actorEmail !== MANAGING_MEMBER_EMAIL && actorEmail !== entry.fromEmail) {
+    // Any party (sender or recipient) or the manager can delete.
+    if (
+      actorEmail !== MANAGING_MEMBER_EMAIL &&
+      actorEmail !== entry.fromEmail &&
+      actorEmail !== entry.toEmail
+    ) {
       return json({ error: "Forbidden" }, 403, cors);
     }
     await env.DEK_STORE.delete(key);
