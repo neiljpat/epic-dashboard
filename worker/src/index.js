@@ -296,19 +296,20 @@ async function handlePaymentsItem(request, env, cors, email) {
     if (cl > MAX_PAYMENT_BYTES) return json({ error: "Payload too large" }, 413, cors);
     let body;
     try { body = await request.json(); } catch { return json({ error: "Invalid JSON" }, 400, cors); }
-    const { zelle, venmo, paypal, preferred, notes, kid } = body || {};
+    const { zelle, venmo, paypal, preferred, secondary, notes, kid } = body || {};
     if (!timingSafeEqual(kid || "", memberKids[email] || "")) {
       return json({ error: "Unauthorized" }, 401, cors);
     }
-    if (preferred && !["zelle", "venmo", "paypal"].includes(preferred)) {
-      return json({ error: "Invalid preferred method" }, 400, cors);
-    }
+    const validMethod = m => !m || ["zelle", "venmo", "paypal"].includes(m);
+    if (!validMethod(preferred))  return json({ error: "Invalid preferred method" }, 400, cors);
+    if (!validMethod(secondary))  return json({ error: "Invalid secondary method" }, 400, cors);
     const sanitize = v => v == null ? null : String(v).slice(0, 200);
     const entry = {
       zelle:    sanitize(zelle),
       venmo:    sanitize(venmo),
       paypal:   sanitize(paypal),
       preferred: preferred || null,
+      secondary: secondary || null,
       notes:    sanitize(notes) || "",
       updatedAt: new Date().toISOString(),
     };
