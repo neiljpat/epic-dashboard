@@ -21,3 +21,7 @@ docs/source/**/*.docx
 docs/source/**/*.xlsx
 docs/source/**/*.xls
 docs/source/**/*.csv
+
+# Carries live state: figures, member payment identifiers, tax detail.
+# Must never be tracked in this PUBLIC repo. See CLAUDE.md section 2.
+HANDOFF.md

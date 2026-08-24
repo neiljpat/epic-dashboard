@@ -306,8 +306,8 @@ const DATA = {
     {
       id, name, type, bucket, visibleTo,
       commitment,
-      called:      { 2024: 45000, 2025: 27000, ... },   // by-year buckets
-      distributed: { 2025: 5714.04, 2026: 1613.00 },
+      called:      { <year>: <amount>, ... },           // by-year buckets
+      distributed: { <year>: <amount>, ... },
       nav: { value, asOf, source },
       notes,
     },
