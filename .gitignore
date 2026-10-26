@@ -14,13 +14,11 @@ worker/.wrangler/
 # Distribution to members happens via Google Drive (see docs/DRIVE-SETUP.md),
 # never via this public repo. Even fund-level docs (which are technically
 # already in the encrypted dashboard data) shouldn't be in clear text here.
-docs/source/**/*.pdf
-docs/source/**/*.PDF
-docs/source/**/*.doc
-docs/source/**/*.docx
-docs/source/**/*.xlsx
-docs/source/**/*.xls
-docs/source/**/*.csv
+# Deny-all, not an extension allowlist: an unlisted extension (a .zip of
+# subscription documents, a .key, a .heic of a signed page) would otherwise
+# land in a PUBLIC repo. Only README.md is tracked here.
+docs/source/*
+!docs/source/README.md
 
 # Carries live state: figures, member payment identifiers, tax detail.
 # Must never be tracked in this PUBLIC repo. See CLAUDE.md section 2.
